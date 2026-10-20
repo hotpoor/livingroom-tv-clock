@@ -35,7 +35,7 @@ public class SchedulePanel extends LinearLayout {
         Button add=button("＋");addButton=add;add.setContentDescription("添加日程");add.setOnClickListener(v->new AlertDialog.Builder(activity).setTitle("添加日程").setItems(new String[]{"语音 / 自然语言输入","手动填写日期时间"},(d,w)->{if(w==0)activity.startActivity(new Intent(activity,VoiceScheduleActivity.class));else edit(-1);}).setNegativeButton("取消",null).show());heading.addView(add,new LayoutParams(dp(36),dp(34)));initial=add;
         LayoutParams hp=new LayoutParams(-1,-2);hp.topMargin=dp(7);hp.bottomMargin=dp(12);addView(heading,hp);
         TextView date=label(ScheduleStore.today().replace('-','.')+"  ·  上海时间",12,MUTED);addView(date);
-        LinearLayout tabRow=row();String[] names={"即将到期","最近添加","已过期"};
+        LinearLayout tabRow=row();tabRow.setBaselineAligned(false);tabRow.setGravity(Gravity.TOP);String[] names={"即将到期","最近添加","已过期"};
         for(int i=0;i<3;i++){final int target=i;Button b=button(names[i]);b.setTextSize(12);b.setOnClickListener(v->selectTab(target));tabs[i]=b;LayoutParams lp=new LayoutParams(0,dp(40),1);lp.setMargins(dp(2),dp(12),dp(2),0);tabRow.addView(b,lp);}addView(tabRow);
         scroll=new ScrollView(a);scroll.setVerticalScrollBarEnabled(false);body=new LinearLayout(a);body.setOrientation(VERTICAL);body.setPadding(0,dp(18),0,dp(8));scroll.addView(body);addView(scroll,new LayoutParams(-1,0,1));
         addView(label("← → 切换分类    ↑ ↓ 浏览    确认管理",10,MUTED));rebuild();
