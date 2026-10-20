@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "fridges": [
+    {"id": "kitchen", "name": "厨房冰箱", "inventoryStatus": "待录入", "items": []},
+    {"id": "livingroom", "name": "客厅冰箱", "inventoryStatus": "待录入", "items": []}
+  ]
+}

@@ -1,0 +1,13 @@
+/build/
+/local-assets/
+/.tools/
+*.keystore
+*.jks
+*.apk
+*.idsig
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
