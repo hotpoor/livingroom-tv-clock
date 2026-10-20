@@ -119,3 +119,8 @@ WebSocket 心跳每 10 秒发送，连接断开后约 3 秒重试。电视进程
 默认公开构建内置 Oswald 600，并附带 SIL OFL 授权。可将自行取得且有权使用的字体放在被 Git 忽略的 `local-assets/fonts/Fliqlo.otf`，本地构建会优先加载该字体。Fliqlo 原字体及包含它的本地 APK 不在本仓库分发。数字按实际字形边界居中，并为最宽数字组合保留空间。
 
 网页部署还需配置 `web_password_hash`：在 backend 目录执行 `python -c "from inventory_db import password_hash; import getpass; print(password_hash(getpass.getpass()))"`，将输出写入私有配置。设备 `token` 与网页口令用途不同，不应互相替代。首次连接由电视上传已有库存初始化服务端。
+
+
+### 网页 4B 解析试验
+
+登录后点击侧栏「4B 解析试验」，可选择冰箱或日程输入，查看解析字段、耗时和 JSON。`POST /api/model-trial` 使用现有会话认证与同源检查，固定调用 `qwen3.5:4b`；冰箱试验参考服务端库存摘要，日程试验使用当前上海时间。结果仅供核对，不写库存、不创建提醒。电视 `/parse` 与 `/fridge/parse` 保持 `qwen3.5:0.8b`。部署前在配置的 Ollama 服务中下载 4B 模型。

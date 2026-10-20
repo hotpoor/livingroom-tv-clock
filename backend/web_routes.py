@@ -6,6 +6,7 @@ import threading
 import time
 from urllib.parse import urlsplit
 from inventory_socket import InventorySocket
+from model_trial import trial
 from inventory_db import InventoryDB,Conflict,password_hash
 
 
@@ -41,7 +42,7 @@ class WebRoutes:
         self.send(h,200,self.db.state() if path=='/api/inventory' else {'authenticated':True});return True
     def post(self,h):
         path=urlsplit(h.path).path
-        if path not in ('/api/login','/api/logout','/api/inventory','/api/sync','/api/resolve'):return False
+        if path not in ('/api/login','/api/logout','/api/inventory','/api/sync','/api/resolve','/api/model-trial'):return False
         try:
             if not self.bearer(h):
                 origin=h.headers.get('Origin','')
@@ -52,6 +53,8 @@ class WebRoutes:
             if not 0<length<=1024*1024 or h.headers.get('Content-Type','').split(';')[0]!='application/json':raise ValueError('请求格式无效')
             h.connection.settimeout(15);body=json.loads(h.rfile.read(length))
             if not isinstance(body,dict):raise ValueError('请求格式无效')
+            if path=='/api/model-trial':
+                code,result=trial(self.config,self.db,body);self.send(h,code,result);return True
             if path=='/api/login':
                 secret=self.config.get('web_password_hash','');password=body.get('password','')
                 if not secret:self.send(h,503,{'error':'请先配置网页访问口令'});return True

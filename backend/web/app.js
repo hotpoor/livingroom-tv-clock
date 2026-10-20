@@ -48,3 +48,14 @@ function connectEvents(){
  socket.onerror=()=>socket.close();
 }
 setInterval(()=>{if(state)connectEvents();},3000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state)load();});load();
+
+$('open-model-trial').onclick=()=>$('model-trial-dialog').showModal();
+$('model-trial-form').onsubmit=async event=>{
+ event.preventDefault();const button=$('trial-submit');button.disabled=true;button.textContent='正在解析…';$('trial-error').textContent='';$('trial-result').classList.add('hidden');
+ try{const result=await api('/api/model-trial',{text:$('trial-text').value,mode:$('trial-mode').value});
+ $('trial-timing').textContent='Qwen3.5-4B · '+result.seconds+' 秒 · 仅预览，未保存';
+ const names={food:'食材',quantity:'数量',unit:'单位',action:'操作',fridgeId:'冰箱 ID',fridgeName:'冰箱',location:'区域',startDate:'开始日期',endDate:'到期日期',issues:'待核对',title:'事项',date:'日期',time:'事件时间',departureTime:'出发时间',mustFinishToday:'当天必须完成'};
+ $('trial-fields').replaceChildren();for(const [key,value] of Object.entries(result.draft)){if(key==='fridgeId')continue;const row=node('p');let display=value;if(key==='action')display={add:'放入',remove:'取出 / 吃掉',unknown:'待确认'}[value]||value;if(Array.isArray(value))display=value.length?value.join('；'):'无';else if(typeof value==='boolean')display=value?'是':'否';else if(value&&typeof value==='object')display=JSON.stringify(value);row.append(node('strong','',(names[key]||key)+'：'),node('span','',display===null||display===''?'未提及':String(display)));$('trial-fields').append(row);}
+ $('trial-json').textContent=JSON.stringify(result.draft,null,2);$('trial-result').classList.remove('hidden');
+ }catch(error){$('trial-error').textContent=error.message;}finally{button.disabled=false;button.textContent='用 4B 解析';}
+};
