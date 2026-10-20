@@ -29,15 +29,14 @@ public class SchedulePanel extends LinearLayout {
     private static final int WHITE=0xffeef0f5,MUTED=0xff9299aa,PURPLE=0xffc8c0f2,AMBER=0xffedc28d;
     SchedulePanel(Activity a){
         super(a);activity=a;tasks=ScheduleStore.load(a);ScheduleStore.schedule(a,tasks);
-        setOrientation(VERTICAL);setPadding(dp(18),dp(22),dp(18),dp(16));setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff201e2b,0xff12151c}));
-        addView(label("把今天重要的事，放在眼前",11,MUTED));
-        LinearLayout heading=row();TextView title=label("备忘与日程",25,WHITE);title.setTypeface(null,Typeface.BOLD);heading.addView(title,new LayoutParams(0,-2,1));
+        setOrientation(VERTICAL);setPadding(dp(18),dp(12),dp(18),dp(10));setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff201e2b,0xff12151c}));
+        LinearLayout heading=row();TextView title=label("备忘与日程",21,WHITE);title.setTypeface(null,Typeface.BOLD);heading.addView(title,new LayoutParams(0,-2,1));
         Button add=button("＋");addButton=add;add.setContentDescription("添加日程");add.setOnClickListener(v->new AlertDialog.Builder(activity).setTitle("添加日程").setItems(new String[]{"语音 / 自然语言输入","手动填写日期时间"},(d,w)->{if(w==0)activity.startActivity(new Intent(activity,VoiceScheduleActivity.class));else edit(-1);}).setNegativeButton("取消",null).show());heading.addView(add,new LayoutParams(dp(36),dp(34)));initial=add;
-        LayoutParams hp=new LayoutParams(-1,-2);hp.topMargin=dp(7);hp.bottomMargin=dp(12);addView(heading,hp);
-        TextView date=label(ScheduleStore.today().replace('-','.')+"  ·  上海时间",12,MUTED);addView(date);
+        LayoutParams hp=new LayoutParams(-1,-2);hp.topMargin=0;hp.bottomMargin=dp(4);addView(heading,hp);
+        TextView date=label(ScheduleStore.today().replace('-','.')+"  ·  上海时间",10,MUTED);addView(date);
         LinearLayout tabRow=row();tabRow.setBaselineAligned(false);tabRow.setGravity(Gravity.TOP);String[] names={"即将到期","最近添加","已过期"};
-        for(int i=0;i<3;i++){final int target=i;Button b=button(names[i]);b.setTextSize(12);b.setOnClickListener(v->selectTab(target));tabs[i]=b;LayoutParams lp=new LayoutParams(0,dp(40),1);lp.setMargins(dp(2),dp(12),dp(2),0);tabRow.addView(b,lp);}addView(tabRow);
-        scroll=new ScrollView(a);scroll.setVerticalScrollBarEnabled(false);body=new LinearLayout(a);body.setOrientation(VERTICAL);body.setPadding(0,dp(18),0,dp(8));scroll.addView(body);addView(scroll,new LayoutParams(-1,0,1));
+        for(int i=0;i<3;i++){final int target=i;Button b=button(names[i]);b.setTextSize(12);b.setOnClickListener(v->selectTab(target));tabs[i]=b;LayoutParams lp=new LayoutParams(0,dp(32),1);lp.setMargins(dp(2),dp(6),dp(2),0);tabRow.addView(b,lp);}addView(tabRow);
+        scroll=new ScrollView(a);scroll.setVerticalScrollBarEnabled(false);body=new LinearLayout(a);body.setOrientation(VERTICAL);body.setPadding(0,dp(10),0,dp(4));scroll.addView(body);addView(scroll,new LayoutParams(-1,0,1));
         addView(label("← → 切换分类    ↑ ↓ 浏览    确认管理",10,MUTED));rebuild();
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
@@ -67,27 +66,31 @@ public class SchedulePanel extends LinearLayout {
     }
     private void card(int index,JSONObject t){
         boolean done=t.optBoolean("completed"),urgent=t.optBoolean("mustFinishToday");
-        LinearLayout card=new LinearLayout(activity);card.setOrientation(VERTICAL);card.setPadding(dp(15),dp(14),dp(15),dp(14));card.setBackground(surface());card.setFocusable(true);card.setClickable(true);card.setOnClickListener(v->manage(index));
+        LinearLayout card=new LinearLayout(activity);card.setOrientation(VERTICAL);card.setPadding(dp(13),dp(9),dp(13),dp(9));card.setBackground(surface());card.setFocusable(true);card.setClickable(true);card.setOnClickListener(v->details(index));
         cards.put(t.optString("id"),card);
-        if(t.optString("id").equals(alertId)){TextView alertLabel=label("departure".equals(alertPhase)?"本次提醒 · 该出发了":"本次提醒 · 计划时间已到",12,AMBER);card.addView(alertLabel);}
         LinearLayout top=row();String kind=t.optString("departureTime").isEmpty()?urgent?"今日必办":"日程":"接送提醒";
-        top.addView(label(urgent?"今天一定要完成":kind,11,urgent?AMBER:PURPLE),new LayoutParams(0,-2,1));top.addView(label(done?"✓ 已完成":t.optString("time"),13,done?0xff9acbb5:WHITE));card.addView(top);
-        TextView title=label(t.optString("title"),19,done?MUTED:WHITE);title.setTypeface(null,Typeface.BOLD);LayoutParams tp=new LayoutParams(-1,-2);tp.topMargin=dp(10);tp.bottomMargin=dp(12);card.addView(title,tp);
-        TextView caption=label("",11,MUTED),count=label("",22,urgent?AMBER:PURPLE);count.setTypeface(null,Typeface.BOLD);card.addView(caption);card.addView(count);
-        String details=t.optString("date")+(t.optString("departureTime").isEmpty()?"":"  "+t.optString("departureTime")+" 出发")+"  ·  "+t.optString("time")+(kind.equals("接送提醒")?" 接送":" 开始");
-        TextView info=label(details,10,MUTED);LayoutParams ip=new LayoutParams(-1,-2);ip.topMargin=dp(10);card.addView(info,ip);
-        TextView deadline=label("",12,AMBER);LayoutParams dp=new LayoutParams(-1,-2);dp.topMargin=dp(9);card.addView(deadline,dp);
-        String note=t.optString("note");if(!note.isEmpty()&&!note.equals("今天一定要完成")&&!note.equals("提前出发，"+t.optString("time")+" 接放学")){TextView n=label(note,12,urgent?AMBER:MUTED);LayoutParams np=new LayoutParams(-1,-2);np.topMargin=dp(8);card.addView(n,np);}
+        String tag=t.optString("id").equals(alertId)?("departure".equals(alertPhase)?"提醒 · 该出发了":"提醒 · 计划时间已到"):kind;
+        top.addView(label(tag,10,urgent?AMBER:PURPLE),new LayoutParams(0,-2,1));top.addView(label(done?"✓ 已完成":"待完成",10,done?0xff9acbb5:MUTED));card.addView(top);
+        TextView title=label(t.optString("title"),17,done?MUTED:WHITE);title.setTypeface(null,Typeface.BOLD);title.setMinLines(2);title.setMaxLines(2);title.setEllipsize(android.text.TextUtils.TruncateAt.END);LayoutParams tp=new LayoutParams(-1,-2);tp.topMargin=dp(3);tp.bottomMargin=dp(4);card.addView(title,tp);
+        TextView count=label("",18,urgent?AMBER:PURPLE);count.setTypeface(null,Typeface.BOLD);count.setSingleLine(true);count.setEllipsize(android.text.TextUtils.TruncateAt.END);card.addView(count);
+        String infoText=t.optString("date")+" · "+t.optString("time")+(t.optString("departureTime").isEmpty()?"":" · "+t.optString("departureTime")+" 出发");
+        TextView info=label(infoText,10,MUTED);info.setSingleLine(true);info.setEllipsize(android.text.TextUtils.TruncateAt.END);LayoutParams ip=new LayoutParams(-1,-2);ip.topMargin=dp(4);card.addView(info,ip);
         Runnable update=()->{
             long now=System.currentTimeMillis(),start=ScheduleStore.at(t.optString("date"),t.optString("time"));
             long departure=t.optString("departureTime").isEmpty()?-1:ScheduleStore.at(t.optString("date"),t.optString("departureTime"));
-            if(done){caption.setText("这一件事已经完成");count.setText("完成啦");deadline.setVisibility(GONE);return;}
-            if(departure>now){caption.setText("距离出发还有");count.setText(ScheduleStore.countdown(departure-now));}
-            else if(start>now){caption.setText(departure>0?"该出发了 · 距离接送还有":"距离开始还有");count.setText(ScheduleStore.countdown(start-now));}
-            else{caption.setText(departure>0?"接送时间已到 · 请确认完成":urgent?"已到开始时间 · 今天一定要完成":"已到计划时间 · 尚未标记完成");count.setText("已过 "+ScheduleStore.countdown(now-start));}
-            if(urgent){long end=ScheduleStore.deadline(t);deadline.setText(end>now?"距当天结束 "+ScheduleStore.countdown(end-now):"当天已结束 · 事项仍未完成");}else deadline.setVisibility(GONE);
+            if(done){count.setText("已完成 · 确认查看详情");return;}
+            if(departure>now)count.setText("出发还有 "+ScheduleStore.countdown(departure-now));
+            else if(start>now)count.setText((departure>0?"该出发了 · 还有 ":"开始还有 ")+ScheduleStore.countdown(start-now));
+            else if(urgent&&ScheduleStore.deadline(t)>now)count.setText("今日剩余 "+ScheduleStore.countdown(ScheduleStore.deadline(t)-now));
+            else count.setText("已过 "+ScheduleStore.countdown(now-(urgent?ScheduleStore.deadline(t):start)));
         };updates.add(update);update.run();
-        LayoutParams cp=new LayoutParams(-1,-2);cp.bottomMargin=dp(14);body.addView(card,cp);if(initial==addButton)initial=card;
+        LayoutParams cp=new LayoutParams(-1,-2);cp.bottomMargin=dp(8);body.addView(card,cp);if(initial==addButton)initial=card;
+    }
+    private void details(int index){
+        JSONObject t=tasks.optJSONObject(index);
+        String text=t.optString("date")+"  "+t.optString("time")+" 开始"+(t.optString("departureTime").isEmpty()?"":"\n"+t.optString("departureTime")+" 出发")+(t.optBoolean("mustFinishToday")?"\n当天必须完成":"")+"\n"+(t.optBoolean("completed")?"已完成":"尚未完成");
+        if(!t.optString("note").isEmpty())text+="\n\n备注\n"+t.optString("note");
+        new AlertDialog.Builder(activity).setTitle(t.optString("title")).setMessage(text).setPositiveButton("管理事项",(d,w)->manage(index)).setNegativeButton("返回",null).show();
     }
     private void manage(int index){JSONObject t=tasks.optJSONObject(index);new AlertDialog.Builder(activity).setTitle(t.optString("title")).setItems(new String[]{t.optBoolean("completed")?"恢复为待办":"标记已完成","编辑事项","删除事项"},(d,w)->{
         if(w==0){try{t.put("completed",!t.optBoolean("completed"));}catch(JSONException ignored){}ScheduleStore.save(activity,tasks);rebuild();focusFirst();}
