@@ -33,7 +33,8 @@ public class FridgePanel extends LinearLayout {
         addView(label("家庭食材  /  本机清单",11,MUTED));
         LinearLayout heading=row();TextView title=label("冰箱库存",25,WHITE);title.setTypeface(null,Typeface.BOLD);
         heading.addView(title,new LayoutParams(0,-2,1));
-        Button manage=button("管理",false);manage.setTextSize(12);manage.setOnClickListener(v->manage());heading.addView(manage,new LayoutParams(dp(54),dp(34)));margin(heading,5,13);
+        Button voice=button("语音",false);voice.setTextSize(12);voice.setOnClickListener(v->activity.startActivity(new Intent(activity,VoiceFridgeActivity.class).putExtra("fridgeId",fridges.length()==0?"":fridge(selected).optString("id"))));heading.addView(voice,new LayoutParams(dp(50),dp(34)));
+        Button manage=button("管理",false);manage.setTextSize(12);manage.setOnClickListener(v->manage());LayoutParams mp=new LayoutParams(dp(50),dp(34));mp.leftMargin=dp(6);heading.addView(manage,mp);margin(heading,5,13);
         scroll=new HorizontalScrollView(a);scroll.setHorizontalScrollBarEnabled(false);
         tabs=row();scroll.addView(tabs);addView(scroll,new LayoutParams(-1,dp(43)));
         summary=label("",12,MUTED);margin(summary,12,10);
@@ -46,13 +47,7 @@ public class FridgePanel extends LinearLayout {
     }
     private void load(){
         try {
-            String stored=prefs.getString("inventory",null);
-            if(stored==null){
-                ByteArrayOutputStream out=new ByteArrayOutputStream();
-                try(InputStream in=activity.getAssets().open("inventory.json")){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}
-                inventory=new JSONObject(out.toString("UTF-8"));fridges=inventory.getJSONArray("fridges");selected=0;
-                prefs.edit().putString("legacyTabsBackup",prefs.getString("tabs","[]")).apply();save();
-            }else{inventory=new JSONObject(stored);fridges=inventory.getJSONArray("fridges");selected=Math.max(0,Math.min(prefs.getInt("selected",0),fridges.length()-1));}
+            inventory=InventoryStore.load(activity).data;fridges=inventory.getJSONArray("fridges");selected=Math.max(0,Math.min(prefs.getInt("selected",0),fridges.length()-1));
         }catch(Exception e){inventory=new JSONObject();fridges=new JSONArray();Toast.makeText(activity,"库存读取失败，请稍后重试",Toast.LENGTH_LONG).show();}
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
@@ -64,14 +59,15 @@ public class FridgePanel extends LinearLayout {
     private Button button(String text,boolean active){Button b=new Button(activity);b.setText(text);b.setAllCaps(false);b.setTextSize(12);b.setTextColor(active?MINT:WHITE);b.setPadding(dp(10),0,dp(10),0);b.setMinHeight(0);b.setMinimumHeight(0);b.setMinWidth(0);b.setMinimumWidth(0);b.setBackground(surface(active));return b;}
     private JSONObject fridge(int i){return fridges.optJSONObject(i);}
     private String name(int i){JSONObject f=fridge(i);return f==null?"":f.optString("name");}
-    private void save(){try{inventory.put("fridges",fridges);}catch(JSONException ignored){}prefs.edit().putString("inventory",inventory.toString()).putInt("selected",selected).apply();}
+    private void save(){try{inventory.put("fridges",fridges);}catch(JSONException ignored){}InventoryStore.save(activity,inventory);prefs.edit().putInt("selected",selected).apply();}
+    public void reload(){load();rebuild(false);}
     private void rebuild(boolean focus){
         rebuilding=true;tabs.removeAllViews();
         for(int i=0;i<fridges.length();i++){
             final int index=i;Button b=button(name(i),i==selected);b.setSingleLine(true);b.setEllipsize(TextUtils.TruncateAt.END);b.setMaxWidth(dp(155));
             LayoutParams p=new LayoutParams(-2,dp(38));p.rightMargin=dp(7);tabs.addView(b,p);
-            b.setOnFocusChangeListener((v,on)->{if(on&&!rebuilding&&ready){selected=index;save();refresh();scroll.post(()->scroll.smoothScrollTo(Math.max(0,b.getLeft()-dp(10)),0));}});
-            b.setOnClickListener(v->{selected=index;save();refresh();});
+            b.setOnFocusChangeListener((v,on)->{if(on&&!rebuilding&&ready){selected=index;prefs.edit().putInt("selected",selected).apply();refresh();scroll.post(()->scroll.smoothScrollTo(Math.max(0,b.getLeft()-dp(10)),0));}});
+            b.setOnClickListener(v->{selected=index;prefs.edit().putInt("selected",selected).apply();refresh();});
         }
         Button plus=button("＋",false);tabs.addView(plus,new LayoutParams(dp(36),dp(38)));plus.setContentDescription("添加冰箱");plus.setOnClickListener(v->edit(false));
         rebuilding=false;refresh();if(focus)focusTabs();
@@ -102,7 +98,7 @@ public class FridgePanel extends LinearLayout {
         LinearLayout top=row();TextView name=label(item.optString("name"),16,WHITE);name.setTypeface(null,Typeface.BOLD);name.setSingleLine(true);name.setEllipsize(TextUtils.TruncateAt.END);top.addView(name,new LayoutParams(0,-2,1));
         TextView count=label("×"+item.optInt("quantity")+" "+item.optString("unit"),13,MINT);top.addView(count);card.addView(top);
         JSONObject life=item.optJSONObject("shelfLife");String date="未提供保质期",status=item.optString("reminder","");int color=AMBER;
-        if(life!=null){date=life.optString("startDate").replace('-','.')+" — "+life.optString("endDate").replace('-','.');status=expiry(life.optString("endDate"));color=status.contains("已过期")?0xffed9c95:days(life.optString("endDate"))<=7?AMBER:MINT;}
+        if(life!=null){date=(life.optString("startDate").isEmpty()?"到期 ":life.optString("startDate").replace('-','.')+" — ")+life.optString("endDate").replace('-','.');status=expiry(life.optString("endDate"));color=status.contains("已过期")?0xffed9c95:days(life.optString("endDate"))<=7?AMBER:MINT;}
         LinearLayout bottom=row();bottom.addView(label(date,9,MUTED),new LayoutParams(0,-2,1));bottom.addView(label(status,9,color));
         LayoutParams bp=new LayoutParams(-1,-2);bp.topMargin=dp(6);card.addView(bottom,bp);
         card.setContentDescription(item.optString("name")+"，"+count.getText()+"，"+date+"，"+status);
