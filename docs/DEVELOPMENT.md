@@ -30,4 +30,4 @@
 
 该真机未注册标准 `android.speech.RecognitionService` 或 `android.speech.action.RECOGNIZE_SPEECH` Activity。单靠标准 SpeechRecognizer 不能直接调用电视的小爱识别。
 
-0.5.1 新增「设置 → 遥控器语音输入测试」。选中前台 EditText 后请求输入法，真机搜狗输入法成功建立 InputConnection，界面显示「按住语音键说话」。识别结果能否回填仍需用户实际按键说话验证。这里未接入小爱技能，也不将测试文字直接写入库存或日程。
+0.5.1 新增「设置 → 遥控器语音输入测试」。选中前台 EditText 后请求输入法，真机搜狗输入法成功建立 InputConnection，界面显示「按住语音键说话」。用户实际按住遥控器语音键说话后，测试 Activity 的 EditText 成功收到完整中文短句，TextWatcher 和 UI 状态均确认文字回填。因此可沿用前台输入法做语音文字录入；尚不支持屏保首页无输入框时直接接管小爱，也未将测试文字自动写入库存或日程。
