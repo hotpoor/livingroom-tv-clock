@@ -15,7 +15,11 @@ if (!$buildTools -or !$androidJar) { throw 'Android platform or build-tools miss
 function Check { if ($LASTEXITCODE -ne 0) { throw "Build command failed ($LASTEXITCODE)" } }
 New-Item -ItemType Directory -Force -Path "$projectDir\build\classes", "$projectDir\build\dex", "$projectDir\build\assets" | Out-Null
 Copy-Item -Path "$projectDir\assets\*.json" -Destination "$projectDir\build\assets" -Force
+if (Test-Path "$projectDir\assets\fonts") { Copy-Item -LiteralPath "$projectDir\assets\fonts" -Destination "$projectDir\build\assets" -Recurse -Force }
 if (Test-Path -LiteralPath "$projectDir\local-assets") { Get-ChildItem -LiteralPath "$projectDir\local-assets" -Filter *.json | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination "$projectDir\build\assets" -Force } }
+$privateFontTarget = Join-Path $projectDir 'build\assets\fonts\Fliqlo.otf'
+if (Test-Path -LiteralPath $privateFontTarget) { Remove-Item -LiteralPath $privateFontTarget -Force }
+if (Test-Path "$projectDir\local-assets\fonts") { Copy-Item -LiteralPath "$projectDir\local-assets\fonts" -Destination "$projectDir\build\assets" -Recurse -Force }
 & "$buildTools\aapt.exe" package -f -M "$projectDir\AndroidManifest.xml" -S "$projectDir\res" -A "$projectDir\build\assets" -I $androidJar -F "$projectDir\build\base.apk"
 Check
 $sources = Get-ChildItem -LiteralPath "$projectDir\src" -Filter *.java -Recurse | ForEach-Object FullName

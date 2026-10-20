@@ -13,7 +13,7 @@ public class ClockView extends View {
     public long weatherTime;
     public boolean offline;
     private final Paint paint=new Paint(3);
-    private final Typeface digits=Typeface.create("sans-serif-condensed",Typeface.BOLD);
+    private final Typeface digits;
     private final Typeface regular=Typeface.create("sans-serif-light",Typeface.NORMAL);
     private final SharedPreferences prefs;
     private final android.icu.util.ChineseCalendar lunar=new android.icu.util.ChineseCalendar();
@@ -21,7 +21,18 @@ public class ClockView extends View {
     private long flipStart;
     private final long created=SystemClock.elapsedRealtime();
     private final Runnable tick=()->invalidate();
-    public ClockView(Context c) {super(c);prefs=c.getSharedPreferences("clock",0);setLayerType(View.LAYER_TYPE_HARDWARE,null);}
+    public ClockView(Context c) {super(c);
+        Typeface face;
+        try {
+            face=Typeface.createFromAsset(c.getAssets(),"fonts/Fliqlo.otf");
+        }catch(RuntimeException missingPrivateFont){
+          try {
+            if(android.os.Build.VERSION.SDK_INT>=26)face=new Typeface.Builder(c.getAssets(),"fonts/Oswald.ttf").setFontVariationSettings("'wght' 600").setWeight(600).build();
+            else face=Typeface.create(Typeface.createFromAsset(c.getAssets(),"fonts/Oswald.ttf"),Typeface.BOLD);
+          }catch(RuntimeException e){face=Typeface.create("sans-serif-condensed",Typeface.BOLD);}
+        }
+        digits=face;
+        prefs=c.getSharedPreferences("clock",0);setLayerType(View.LAYER_TYPE_HARDWARE,null);}
     protected void onDetachedFromWindow() {removeCallbacks(tick);super.onDetachedFromWindow();}
     protected void onDraw(Canvas c) {
         super.onDraw(c); removeCallbacks(tick);
@@ -93,8 +104,12 @@ public class ClockView extends View {
     }
     private void number(Canvas c,float x,float y,float w,float h,String value,boolean top) {
         c.save(); c.clipRect(x,y+(top?0:h/2),x+w,y+(top?h/2:h));
-        paint.setTypeface(digits);paint.setTextSize(Math.min(416,w*.76f));paint.setTextAlign(Paint.Align.CENTER);paint.setColor(top?0xffececea:0xffd9dad8);
-        Paint.FontMetrics fm=paint.getFontMetrics();float baseline=y+h/2-(fm.ascent+fm.descent)/2-1;
+        paint.setTypeface(digits);paint.setTextSize(1000);paint.setTextScaleX(1);
+        Rect bounds=new Rect();paint.getTextBounds("0123456789",0,10,bounds);
+        float widest=0;for(int d=0;d<10;d++)widest=Math.max(widest,paint.measureText(""+d+d));
+        float size=1000*Math.min(h*.82f/bounds.height(),w*.84f/widest);
+        paint.setTextSize(size);paint.setTextAlign(Paint.Align.CENTER);paint.setColor(top?0xffececea:0xffd9dad8);
+        paint.getTextBounds("0123456789",0,10,bounds);float baseline=y+h/2-(bounds.top+bounds.bottom)/2f;
         c.drawText(value,x+w/2,baseline,paint);c.restore();
     }
     private void card(Canvas c,float x,float y,float w,float h,String value,String old,float p) {

@@ -23,7 +23,7 @@ public final class InventoryStore {
         }
         return new Snapshot(data,p.getLong("inventoryRevision",0));
     }
-    static synchronized void save(Context c,JSONObject data){SharedPreferences p=c.getSharedPreferences("fridges",0);p.edit().putString("inventory",data.toString()).putLong("inventoryRevision",p.getLong("inventoryRevision",0)+1).apply();}
+    static synchronized void save(Context c,JSONObject data){SharedPreferences p=c.getSharedPreferences("fridges",0);if(!p.edit().putString("inventory",data.toString()).putLong("inventoryRevision",p.getLong("inventoryRevision",0)+1).putBoolean("inventoryDirty",true).putString("syncChangeId",UUID.randomUUID().toString()).commit())throw new IllegalStateException("库存保存失败，请重试");InventorySync.trigger(c);}
     static JSONObject fridge(JSONObject data,String id){JSONArray list=data.optJSONArray("fridges");if(list!=null)for(int i=0;i<list.length();i++){JSONObject f=list.optJSONObject(i);if(f!=null&&id.equals(f.optString("id")))return f;}return null;}
     static JSONObject item(JSONObject fridge,String id){JSONArray list=fridge.optJSONArray("items");if(list!=null)for(int i=0;i<list.length();i++){JSONObject t=list.optJSONObject(i);if(t!=null&&id.equals(t.optString("id")))return t;}return null;}
     static String dateError(String start,String end){

@@ -8,7 +8,7 @@
 - 「冷冻的牛肉烧卖吃掉了三个」
 - 「上部冷藏放进酸奶五盒，保质期20300101-20300110」
 
-每次处理一种食材和一个操作。整数数量和增减方向由程序识别；模型只提取完整食材名。电视同时发送结构化库存摘要给局域网服务：冰箱名、完整品名、当前余量、单位、分区和到期日期。摘要优先包括所选冰箱或语音提到的冰箱，最多 20 台冰箱、32 条食材记录。服务不会接收整个库存页面或保存清单副本；接口只返回草稿，库存更新始终发生在电视本机。
+每次处理一种食材和一个操作。整数数量和增减方向由程序识别；模型只提取完整食材名。电视同时发送结构化库存摘要给局域网服务：冰箱名、完整品名、当前余量、单位、分区和到期日期。摘要优先包括所选冰箱或语音提到的冰箱，最多 20 台冰箱、32 条食材记录。语音解析接口只返回草稿，不保存输入文字；用户确认后电视更新本机库存，再通过独立的库存同步接口同步到服务端。
 
 库存摘要同时用于规则匹配和模型提示。能唯一匹配时，会把「草莓酸奶」等简称补全为已有完整品名并显示提示，参考同名食材补出分区。「2楼」与「二楼」、名称中的“的”和空格会归一化；冰箱可以说在句尾，语音指定的冰箱优先于输入页默认值。多个候选、多个分区或批次时需要人工选择。已说出的数量、单位和位置不会被模型覆盖。匹配库存后仍显示原话，补全结果可在核对页修改。
 
@@ -38,7 +38,7 @@
 {"text":"放进两盒草莓酸奶","inventoryContext":{"preferredFridgeId":"example","fridges":[{"id":"example","name":"厨房冰箱","items":[{"name":"示例草莓酸奶","quantity":3,"unit":"盒","location":"上部冷藏","endDate":"2030-01-10"}]}]}}
 ```
 
-服务返回 `food/action/quantity/unit/fridgeName/fridgeId/fridgeMatched/location/locationSource/locationSuggestionsByFridge/startDate/endDate/issues/unsupported/contextUsed/foodCandidates/modelUsed/requiresConfirmation`。缺失字段需在电视补齐，多食材、多操作草稿会要求分开输入。只更新电视本机，不提供跨设备库存同步。
+服务返回 `food/action/quantity/unit/fridgeName/fridgeId/fridgeMatched/location/locationSource/locationSuggestionsByFridge/startDate/endDate/issues/unsupported/contextUsed/foodCandidates/modelUsed/requiresConfirmation`。缺失字段需在电视补齐，多食材、多操作草稿会要求分开输入。确认后先更新电视本机，再同步至局域网共享库存。网页与电视的并发修改使用版本校验，冲突留待网页核对。
 
 ```powershell
 python -m unittest discover -s backend -v

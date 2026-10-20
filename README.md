@@ -60,7 +60,7 @@ New-Item -ItemType Directory -Force local-assets
 Copy-Item assets/*.json local-assets/
 ```
 
-字段示例见 [数据格式](docs/DATA.md)。之后升级不会覆盖本机编辑的库存或日程。目前库存支持确认后语音新增和扣减，还没有文件导入和网络同步。修改种子 JSON 不会自动更新已保存的设备数据。
+字段示例见 [数据格式](docs/DATA.md)。之后升级不会覆盖本机编辑的库存或日程。目前库存支持确认后语音新增和扣减，以及局域网网页编辑和双向同步；尚未提供文件导入。修改种子 JSON 不会自动更新已保存的设备数据。
 
 ## 语音添加日程
 
@@ -103,3 +103,19 @@ src/cn/livingroom/flipclock/
 - 天气坐标发送给 Open-Meteo，反向地理编码使用系统 Geocoder；默认天气地点是上海宝山。
 
 视觉参考翻页钟这一通用形式，未包含 Fliqlo 的代码、图片或品牌素材。天气数据来自 [Open-Meteo](https://open-meteo.com/)。
+
+
+### 局域网库存编辑与同步
+
+同一服务提供网页编辑冰箱、食材批次、数量、区域和保质期，使用独立网页口令登录。网页口令哈希配置在私有 `config.json` 的 `web_password_hash` 中，库存保存在服务端 SQLite，数据库与私有配置不提交仓库。日程暂不在网页编辑范围内。
+
+网页和电视通过已认证的 `/api/events` WebSocket 接收库存更新通知；通知不携带库存。每次连接成功（包括重连）或收到更新通知，客户端通过 HTTP 请求拉取最新版本。网页使用会话 Cookie，电视使用设备凭证。电视本地确认修改仍通过 HTTP 提交，版本冲突会保留两边内容，等待网页核对，不直接覆盖。
+
+WebSocket 心跳每 10 秒发送，连接断开后约 3 秒重试。电视进程运行时另有每 5 分钟 HTTP 补同步，系统后台任务按 Android 调度执行；电视关机或进程停止时不会保持连接，重新打开应用后补拉。网页不再每 5 秒轮询库存。
+
+
+### 时钟字体
+
+默认公开构建内置 Oswald 600，并附带 SIL OFL 授权。可将自行取得且有权使用的字体放在被 Git 忽略的 `local-assets/fonts/Fliqlo.otf`，本地构建会优先加载该字体。Fliqlo 原字体及包含它的本地 APK 不在本仓库分发。数字按实际字形边界居中，并为最宽数字组合保留空间。
+
+网页部署还需配置 `web_password_hash`：在 backend 目录执行 `python -c "from inventory_db import password_hash; import getpass; print(password_hash(getpass.getpass()))"`，将输出写入私有配置。设备 `token` 与网页口令用途不同，不应互相替代。首次连接由电视上传已有库存初始化服务端。

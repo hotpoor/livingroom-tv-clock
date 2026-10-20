@@ -13,3 +13,4 @@ Thumbs.db
 .vscode/
 /backend/config.json
 __pycache__/
+/backend/state/

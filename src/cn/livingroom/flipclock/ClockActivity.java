@@ -25,6 +25,7 @@ public class ClockActivity extends Activity {
     };
     public void onCreate(Bundle b) {
         super.onCreate(b);
+        InventorySync.start(this);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().getDecorView().setSystemUiVisibility(5894);
         opened = SystemClock.elapsedRealtime();

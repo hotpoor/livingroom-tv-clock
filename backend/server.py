@@ -1,4 +1,4 @@
-"""LAN draft-only service. It never stores reminders or utterances."""
+"""LAN draft parsing and persistent shared inventory. No reminder or utterance storage."""
 import concurrent.futures
 import hmac
 import json
@@ -10,10 +10,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from schedule_parser import parse
 from fridge_parser import parse_fridge
 from fridge_context import clean_context, enrich, model_hint
+from web_routes import WebRoutes
 
 CONFIG = json.loads(Path(os.environ.get('SCHEDULE_CONFIG', 'config.json')).read_text(encoding='utf-8'))
 POOL = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 MODEL_LOCK = threading.Lock()
+WEB = WebRoutes(CONFIG)
 
 
 def extract_title(text, fallback, food=False, context=None):
@@ -61,9 +63,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        if WEB.get(self):return
         self.respond(200 if self.path=='/health' else 404,{'service':'schedule-drafts','status':'ok'})
 
     def do_POST(self):
+        if WEB.post(self):return
         if self.path not in ('/parse','/fridge/parse'):
             return self.respond(404,{'error':'not_found'})
         if not hmac.compare_digest(self.headers.get('Authorization',''), 'Bearer '+CONFIG['token']):

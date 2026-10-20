@@ -22,6 +22,9 @@ public class FridgePanel extends LinearLayout {
     private final HorizontalScrollView scroll;
     private final ScrollView content;
     private final TextView summary;
+    private final TextView syncInfo;
+    private long inventoryRevision;
+    private final BroadcastReceiver synced=new BroadcastReceiver(){public void onReceive(Context c,Intent i){if(InventorySync.CHANGED.equals(i.getAction()))reload();else syncInfo.setText(InventorySync.status(activity));}};
     private final Runnable close;
     private boolean rebuilding,ready;
     private static final int WHITE=0xffe9edf1,MUTED=0xff87939d,MINT=0xffa7d9c8,AMBER=0xffe7bd7b;
@@ -38,6 +41,7 @@ public class FridgePanel extends LinearLayout {
         scroll=new HorizontalScrollView(a);scroll.setHorizontalScrollBarEnabled(false);
         tabs=row();scroll.addView(tabs);addView(scroll,new LayoutParams(-1,dp(43)));
         summary=label("",12,MUTED);margin(summary,12,10);
+        syncInfo=label(InventorySync.status(a),9,MUTED);margin(syncInfo,0,8);
         View line=new View(a);line.setBackgroundColor(0xff2a343b);addView(line,new LayoutParams(-1,dp(1)));
         content=new ScrollView(a);content.setVerticalScrollBarEnabled(false);content.setFillViewport(false);
         body=new LinearLayout(a);body.setOrientation(VERTICAL);body.setPadding(0,dp(9),0,dp(6));content.addView(body);
@@ -47,7 +51,7 @@ public class FridgePanel extends LinearLayout {
     }
     private void load(){
         try {
-            inventory=InventoryStore.load(activity).data;fridges=inventory.getJSONArray("fridges");selected=Math.max(0,Math.min(prefs.getInt("selected",0),fridges.length()-1));
+            InventoryStore.Snapshot snapshot=InventoryStore.load(activity);inventory=snapshot.data;inventoryRevision=snapshot.revision;fridges=inventory.getJSONArray("fridges");selected=Math.max(0,Math.min(prefs.getInt("selected",0),fridges.length()-1));
         }catch(Exception e){inventory=new JSONObject();fridges=new JSONArray();Toast.makeText(activity,"库存读取失败，请稍后重试",Toast.LENGTH_LONG).show();}
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
@@ -59,8 +63,10 @@ public class FridgePanel extends LinearLayout {
     private Button button(String text,boolean active){Button b=new Button(activity);b.setText(text);b.setAllCaps(false);b.setTextSize(12);b.setTextColor(active?MINT:WHITE);b.setPadding(dp(10),0,dp(10),0);b.setMinHeight(0);b.setMinimumHeight(0);b.setMinWidth(0);b.setMinimumWidth(0);b.setBackground(surface(active));return b;}
     private JSONObject fridge(int i){return fridges.optJSONObject(i);}
     private String name(int i){JSONObject f=fridge(i);return f==null?"":f.optString("name");}
-    private void save(){try{inventory.put("fridges",fridges);}catch(JSONException ignored){}InventoryStore.save(activity,inventory);prefs.edit().putInt("selected",selected).apply();}
-    public void reload(){load();rebuild(false);}
+    private boolean save(long expected){synchronized(InventoryStore.class){if(prefs.getLong("inventoryRevision",0)!=expected){Toast.makeText(activity,"库存已更新，请重新核对操作",Toast.LENGTH_LONG).show();return false;}try{inventory.put("fridges",fridges);}catch(JSONException ignored){}InventoryStore.save(activity,inventory);inventoryRevision=prefs.getLong("inventoryRevision",0);prefs.edit().putInt("selected",selected).apply();return true;}}
+    public void reload(){load();rebuild(false);syncInfo.setText(InventorySync.status(activity));}
+    protected void onAttachedToWindow(){super.onAttachedToWindow();IntentFilter f=new IntentFilter(InventorySync.CHANGED);f.addAction(InventorySync.STATUS);activity.registerReceiver(synced,f);}
+    protected void onDetachedFromWindow(){activity.unregisterReceiver(synced);super.onDetachedFromWindow();}
     private void rebuild(boolean focus){
         rebuilding=true;tabs.removeAllViews();
         for(int i=0;i<fridges.length();i++){
@@ -110,14 +116,15 @@ public class FridgePanel extends LinearLayout {
     private void manage(){ArrayList<String> options=new ArrayList<>();options.add("添加冰箱");if(fridges.length()>0){options.add("重命名当前冰箱");options.add("删除当前冰箱");}options.add("收起侧栏");new AlertDialog.Builder(activity).setTitle("管理冰箱").setItems(options.toArray(new String[0]),(d,w)->{if(w==0)edit(false);else if(w==options.size()-1)close.run();else if(w==1)edit(true);else delete();}).setNegativeButton("取消",null).show();}
     private void edit(boolean renaming){
         if(!renaming&&fridges.length()>=20){Toast.makeText(activity,"最多添加 20 台冰箱",Toast.LENGTH_SHORT).show();return;}
-        final int index=selected;EditText input=new EditText(activity);input.setSingleLine(true);input.setText(renaming?name(index):"冰箱"+(fridges.length()+1));input.selectAll();input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(20)});
+        final int index=selected;final long editRevision=inventoryRevision;EditText input=new EditText(activity);input.setSingleLine(true);input.setText(renaming?name(index):"冰箱"+(fridges.length()+1));input.selectAll();input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(20)});
         LinearLayout box=row();box.setPadding(dp(24),dp(8),dp(24),dp(8));box.addView(input,new LayoutParams(-1,-2));
         AlertDialog d=new AlertDialog.Builder(activity).setTitle(renaming?"重命名冰箱":"添加冰箱 Tab").setView(box).setNegativeButton("取消",null).setPositiveButton("保存",null).create();
         d.setOnShowListener(v->d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(b->{
+            if(prefs.getLong("inventoryRevision",0)!=editRevision){d.dismiss();Toast.makeText(activity,"库存已更新，请重新打开编辑",Toast.LENGTH_LONG).show();reload();return;}
             String text=input.getText().toString().trim();if(text.isEmpty()){input.setError("请输入冰箱名称");return;}for(int i=0;i<fridges.length();i++)if((!renaming||i!=index)&&text.equals(name(i))){input.setError("该名称已存在");return;}
             try{if(renaming)fridge(index).put("name",text);else{JSONObject f=new JSONObject();f.put("id",UUID.randomUUID().toString());f.put("name",text);f.put("inventoryStatus","待录入");f.put("items",new JSONArray());fridges.put(f);selected=fridges.length()-1;}}catch(JSONException ignored){}
-            save();d.dismiss();rebuild(true);
+            boolean saved=save(editRevision);d.dismiss();if(saved)rebuild(true);else reload();
         }));d.show();
     }
-    private void delete(){final int index=selected;new AlertDialog.Builder(activity).setTitle("删除「"+name(index)+"」？").setMessage("这将同时删除该冰箱的本机食材清单。").setNegativeButton("取消",null).setPositiveButton("删除",(d,w)->{fridges.remove(index);selected=Math.max(0,Math.min(index,fridges.length()-1));save();rebuild(true);}).show();}
+    private void delete(){final int index=selected;final long expected=inventoryRevision;new AlertDialog.Builder(activity).setTitle("删除「"+name(index)+"」？").setMessage("这将同时删除该冰箱的食材清单，并同步到网页。").setNegativeButton("取消",null).setPositiveButton("删除",(d,w)->{if(prefs.getLong("inventoryRevision",0)!=expected){Toast.makeText(activity,"库存已更新，请重新核对",Toast.LENGTH_LONG).show();reload();return;}fridges.remove(index);selected=Math.max(0,Math.min(index,fridges.length()-1));if(save(expected))rebuild(true);else reload();}).show();}
 }

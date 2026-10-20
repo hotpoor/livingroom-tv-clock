@@ -49,6 +49,7 @@ public class FridgeFlowChecks extends Instrumentation {
         snapshot.data.getJSONArray("fridges").put(new JSONObject().put("id",fridgeId).put("name","二楼测试冰箱").put("items",items));InventoryStore.save(getTargetContext(),snapshot.data);
     }
     public void onStart(){Bundle result=new Bundle();int code=Activity.RESULT_CANCELED;try{
+        InventorySync.pausedForChecks=true;
         if(!argument("replayTextB64").isEmpty()){
             String before=inventory();open(argument("replayTextB64"),"wrong-default");
             ui(()->{check(((Spinner)tag("fridge")).getSelectedItem().toString().equals(argument("expectedFridgeB64")),"Replay selected wrong fridge");check(((Spinner)tag("batch")).getSelectedItem().toString().contains(argument("expectedFoodB64")),"Replay did not select existing product");});
@@ -76,6 +77,6 @@ public class FridgeFlowChecks extends Instrumentation {
         result.putString("stream","Fridge flow passed: draft/preview/cancel, new stock, exact batch deduction, insufficient stock, units, zero removal, restock, stale revision. Stale managed fixtures cleaned: "+staleFixtures+".\n");code=Activity.RESULT_OK;
     }catch(Throwable e){result.putString("stream",android.util.Log.getStackTraceString(e));}finally{
         if(familyBefore!=null)try{InventoryStore.Snapshot snapshot=InventoryStore.load(getTargetContext());JSONArray all=snapshot.data.getJSONArray("fridges"),keep=new JSONArray();for(int i=0;i<all.length();i++)if(!fridgeId.equals(all.getJSONObject(i).optString("id")))keep.put(all.getJSONObject(i));snapshot.data.put("fridges",keep);InventoryStore.save(getTargetContext(),snapshot.data);if(!familyBefore.equals(snapshot.data.toString())){code=Activity.RESULT_CANCELED;result.putString("stream","Family inventory changed unexpectedly; investigate.\n");}}catch(Exception e){code=Activity.RESULT_CANCELED;result.putString("stream","Fixture cleanup failed.\n"+e.getClass().getSimpleName());}
-        if(screen!=null&&!screen.isFinishing())ui(()->screen.finish());finish(code,result);
+        InventorySync.pausedForChecks=false;InventorySync.trigger(getTargetContext());if(screen!=null&&!screen.isFinishing())ui(()->screen.finish());finish(code,result);
     }}
 }
