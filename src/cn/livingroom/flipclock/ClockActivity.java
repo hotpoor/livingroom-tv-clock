@@ -78,7 +78,7 @@ public class ClockActivity extends Activity {
     private void settings() {
         SharedPreferences p = getSharedPreferences("clock",0);
         show(new AlertDialog.Builder(this).setTitle("翻页时钟 · 设置")
-          .setItems(new String[]{"天气设置", "屏幕亮度 · "+p.getInt("brightness",100)+"%", "时钟与日期 · 农历", "冰箱库存 · 横向 Tab", "备忘与日程 · 倒计时", "语音添加日程", "语音更新冰箱", "返回时钟"},(d,w)-> {
+          .setItems(new String[]{"天气设置", "屏幕亮度 · "+p.getInt("brightness",100)+"%", "时钟与日期 · 农历", "冰箱库存 · 横向 Tab", "备忘与日程 · 倒计时", "语音添加日程", "语音更新冰箱", "打开 YouTube 电视版", "返回时钟"},(d,w)-> {
               if(w==0) weatherSettings();
               if(w==1) brightnessSettings();
               if(w==2) displaySettings();
@@ -86,7 +86,14 @@ public class ClockActivity extends Activity {
               if(w==4) openSchedule();
               if(w==5) openVoiceTest();
               if(w==6) openFridgeVoice();
+              if(w==7) openYouTube();
           }).setNegativeButton("关闭",null));
+    }
+    private void openYouTube(){
+        Intent launch=getPackageManager().getLeanbackLaunchIntentForPackage("com.google.android.youtube.tv");
+        if(launch==null)launch=getPackageManager().getLaunchIntentForPackage("com.google.android.youtube.tv");
+        if(launch==null){android.widget.Toast.makeText(this,"尚未安装 YouTube 电视版",android.widget.Toast.LENGTH_LONG).show();return;}
+        try{startActivity(launch);}catch(ActivityNotFoundException|SecurityException e){android.widget.Toast.makeText(this,"系统未允许打开 YouTube",android.widget.Toast.LENGTH_LONG).show();}
     }
     private void openVoiceTest(){startActivity(new Intent(this,VoiceScheduleActivity.class));}
     private void openFridgeVoice(){startActivity(new Intent(this,VoiceFridgeActivity.class));}
