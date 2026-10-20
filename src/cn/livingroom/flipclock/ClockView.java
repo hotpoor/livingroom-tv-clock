@@ -73,7 +73,8 @@ public class ClockView extends View {
         if(weatherTime>0&&System.currentTimeMillis()-weatherTime>3600000)update="天气可能已过期 · "+update;
         text(c,update,center,914,18,0xff555b63,regular);
         }
-        if(now-created<12000)text(c,compact?"返回收起侧栏":"左键日程     右键冰箱     返回退出     菜单键设置",center,1016,20,0xff626970,regular);
+        if(now-created>=12000&&!compact)text(c,"↓ 应用",center,1016,20,0xff626970,regular);
+        if(now-created<12000)text(c,compact?"返回收起侧栏":"左键日程     右键冰箱     下键应用     菜单键设置",center,1016,20,0xff626970,regular);
         c.restore(); c.restore();
         postDelayed(tick,progress<1?16:Math.max(100,1000-System.currentTimeMillis()%1000));
     }

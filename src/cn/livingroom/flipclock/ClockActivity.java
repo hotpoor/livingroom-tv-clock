@@ -14,6 +14,7 @@ public class ClockActivity extends Activity {
     private FrameLayout root;
     private FridgePanel fridge;
     private SchedulePanel schedule;
+    private AppsPanel apps;
     private boolean foreground;
     private int dialogs;
     private long opened;
@@ -54,6 +55,10 @@ public class ClockActivity extends Activity {
         int k = e.getKeyCode();
         if (k == KeyEvent.KEYCODE_VOLUME_UP || k == KeyEvent.KEYCODE_VOLUME_DOWN || k == KeyEvent.KEYCODE_VOLUME_MUTE || k == KeyEvent.KEYCODE_POWER)
             return super.dispatchKeyEvent(e);
+        if(apps!=null){
+            if(k==KeyEvent.KEYCODE_BACK||k==KeyEvent.KEYCODE_MENU){if(e.getAction()==KeyEvent.ACTION_DOWN)closeApps();return true;}
+            return super.dispatchKeyEvent(e);
+        }
         if(fridge!=null){
             if(e.getAction()==KeyEvent.ACTION_DOWN&&(k==KeyEvent.KEYCODE_BACK||k==KeyEvent.KEYCODE_MENU)){closeFridge();return true;}
             return super.dispatchKeyEvent(e);
@@ -67,6 +72,7 @@ public class ClockActivity extends Activity {
             if (k == KeyEvent.KEYCODE_MENU) { settings(); return true; }
             if(k==KeyEvent.KEYCODE_DPAD_RIGHT){openFridge();return true;}
             if(k==KeyEvent.KEYCODE_DPAD_LEFT){openSchedule();return true;}
+            if(k==KeyEvent.KEYCODE_DPAD_DOWN){openApps();return true;}
             // Xiaomi's original saver may be underneath this activity. Dismiss
             // it as well so a single remote key returns to the prior app.
             try { sendBroadcast(new Intent("com.duokan.intent.action.exit.screensaver")); } catch (SecurityException ignored) {}
@@ -97,7 +103,16 @@ public class ClockActivity extends Activity {
     }
     private void openVoiceTest(){startActivity(new Intent(this,VoiceScheduleActivity.class));}
     private void openFridgeVoice(){startActivity(new Intent(this,VoiceFridgeActivity.class));}
+    private void openApps(){
+        if(apps!=null)return;closeFridge();closeSchedule();
+        int height=getResources().getDisplayMetrics().heightPixels;
+        int panelHeight=Math.round(height*.40f);
+        clock.setLayoutParams(new FrameLayout.LayoutParams(-1,height-panelHeight,Gravity.TOP));
+        apps=new AppsPanel(this);root.addView(apps,new FrameLayout.LayoutParams(-1,panelHeight,Gravity.BOTTOM));apps.focusFirst();
+    }
+    private void closeApps(){if(apps==null)return;root.removeView(apps);apps=null;clock.setLayoutParams(new FrameLayout.LayoutParams(-1,-1));clock.requestFocus();opened=SystemClock.elapsedRealtime();}
     private void openFridge(){
+        closeApps();
         if(fridge!=null)return;
         closeSchedule();
         int width=getResources().getDisplayMetrics().widthPixels;
@@ -110,6 +125,7 @@ public class ClockActivity extends Activity {
         if(fridge==null)return;root.removeView(fridge);fridge=null;clock.setLayoutParams(new FrameLayout.LayoutParams(-1,-1));opened=SystemClock.elapsedRealtime();
     }
     private void openSchedule(){
+        closeApps();
         if(schedule!=null)return;closeFridge();
         int width=getResources().getDisplayMetrics().widthPixels,panelWidth=width/3;
         clock.setLayoutParams(new FrameLayout.LayoutParams(width-panelWidth,-1,Gravity.RIGHT));
