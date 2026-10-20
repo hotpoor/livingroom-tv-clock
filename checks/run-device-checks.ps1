@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$TvAddress,[ValidateSet('voice','fridge')][string]$Mode='voice')
+param([Parameter(Mandatory=$true)][string]$TvAddress,[ValidateSet('voice','fridge')][string]$Mode='voice',[string]$ReplayText='',[string]$ExpectedFridge='',[string]$ExpectedFood='')
 $ErrorActionPreference='Stop'
 $project=Split-Path $PSScriptRoot -Parent
 $tools=Join-Path (Split-Path $project -Parent) '.tools'
@@ -24,7 +24,13 @@ try { & "$bt\aapt.exe" add "$dest\base.apk" classes.dex; Check } finally { Pop-L
 try {
     $class=if($Mode -eq 'fridge'){'FridgeFlowChecks'}else{'VoiceFlowChecks'}
     $marker=if($Mode -eq 'fridge'){'Fridge flow passed'}else{'Voice flow passed'}
-    $result=& $adb -s $TvAddress shell am instrument -w "cn.livingroom.flipclock.checks/cn.livingroom.flipclock.$class"
+    $extra=@()
+    if($ReplayText){
+        if($Mode -ne 'fridge' -or !$ExpectedFridge -or !$ExpectedFood){throw 'Replay requires fridge mode, expected fridge and food'}
+        $extra=@('-e','replayTextB64',[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($ReplayText)),'-e','expectedFridgeB64',[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($ExpectedFridge)),'-e','expectedFoodB64',[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($ExpectedFood)))
+        $marker='Fridge read-only replay passed'
+    }
+    $result=& $adb -s $TvAddress shell am instrument -w @extra "cn.livingroom.flipclock.checks/cn.livingroom.flipclock.$class"
     $result | Write-Output
     if($LASTEXITCODE -ne 0 -or ($result -join "`n") -notmatch $marker){throw "$Mode integration checks failed"}
 } finally { & $adb -s $TvAddress uninstall cn.livingroom.flipclock.checks }

@@ -3,11 +3,11 @@ import datetime as dt
 import re
 from schedule_parser import NUM, ZONE, number
 
-ACTION = re.compile(r'放进(?:来|去)?(?:了)?|放入(?:了)?|放到(?:了)?|放了|存入(?:了)?|新增(?:了)?|增加(?:了)?|买了|补了|吃掉(?:了)?|吃了|喝掉(?:了)?|喝了|用掉(?:了)?|用完(?:了)?|拿走(?:了)?|取出(?:了)?|消耗(?:了)?|丢掉(?:了)?|扔了')
+ACTION = re.compile(r'放进(?:来|去)?(?:了)?|放入(?:了)?|放到(?:了)?|放在(?:了)?|放了|存入(?:了)?|新增(?:了)?|增加(?:了)?|买了|补了|吃掉(?:了)?|吃了|喝掉(?:了)?|喝了|用掉(?:了)?|用完(?:了)?|拿走(?:了)?|取出(?:了)?|消耗(?:了)?|丢掉(?:了)?|扔了')
 REMOVE = re.compile(r'吃|喝|用|拿走|取出|消耗|丢|扔')
 QUANTITY = re.compile(r'('+NUM+r')(个|盒|瓶|袋|包|罐|根|颗|只|块|份|枚|杯|支|条)')
 FRIDGE = re.compile(r'(?:[0-9一二三四五六七八九十]+楼)?(?:客厅|厨房)?冰箱')
-LOCATION = re.compile(r'上(?:部|层)(?:冷藏)?|下(?:部|层)(?:冷藏)?|冷藏(?:室|区)?|冷冻(?:室|区)?|保鲜(?:室|区)?')
+LOCATION = re.compile(r'上(?:部|层|面)(?:冷藏)?|冷藏(?:的)?上(?:部|层|面)|下(?:部|层|面)(?:冷藏)?|冷藏(?:的)?下(?:部|层|面)|冷藏(?:室|区)?|冷冻(?:室|区)?|保鲜(?:室|区)?')
 DATE = re.compile(r'(?<!\d)(\d{4})[-年/]?(\d{2})[-月/]?(\d{2})[日号]?(?!\d)')
 
 
@@ -42,12 +42,13 @@ def parse_fridge(text):
         spans += [m.span() for m in re.finditer(r'(?:\d+\.\d+|半|(?:负|-)\s*'+NUM+r')(?:个|盒|瓶|袋|包|罐|根|颗|只|块|份|枚|杯|支|条|公斤|千克|克|斤)',text)]
     def context_span(m):
         suffix=re.match(r'(?:里面的|里面|里边|的|里)',text[m.end():])
-        return (m.start(),m.end()+(len(suffix[0]) if suffix else 0))
+        prefix=re.search(r'(?:在|从|往|给|向)\s*$',text[:m.start()])
+        return (prefix.start() if prefix else m.start(),m.end()+(len(suffix[0]) if suffix else 0))
     fridges=list(FRIDGE.finditer(text));spans += [context_span(m) for m in fridges]
     fridge=fridges[0][0] if fridges else ''
     locations=list(LOCATION.finditer(text));spans += [context_span(m) for m in locations]
     def loc(m):
-        return '上部冷藏' if m.startswith('上') else '下部冷藏' if m.startswith('下') else '冷冻' if m.startswith('冷冻') else '冷藏'
+        return '上部冷藏' if '上' in m else '下部冷藏' if '下' in m else '冷冻' if m.startswith('冷冻') else '冷藏'
     location=loc(locations[0][0]) if locations else ''
     if len({m[0] for m in fridges})>1 or len({loc(m[0]) for m in locations})>1:
         multiple=True
@@ -68,7 +69,8 @@ def parse_fridge(text):
     for begin,end_span in spans:chars[begin:end_span]=' '*(end_span-begin)
     food=''.join(chars)
     food=re.sub(r'保质期(?:无|未知|不知道|不清楚)?|尽快食用|到期(?:日期)?|生产日期|有效期|我刚刚|我刚|刚刚|刚才|请记录|记录一下|帮忙|帮我|提示',' ',food)
-    food=re.sub(r'^\s*(?:我|在|把|往)\s+',' ',food)
+    food=re.sub(r'^\s*(?:今天\s*)?(?:我\s*)?(?:在|把|往|从|给|向)?\s+',' ',food)
+    food=re.sub(r'新(?:增)?(?:一)?批次|新的一批|新的批次',' ',food)
     food=re.sub(r'[\s，,。；;！!？?：:—\-~至]+',' ',food).strip()[:80]
     if re.search(r'.+和.+',food):
         multiple=True
@@ -76,4 +78,6 @@ def parse_fridge(text):
     if not food:issues.append('请填写食材名称')
     return {'food':food,'action':action,'quantity':quantity,'unit':unit,'fridgeName':fridge,'location':location,
             'startDate':start,'endDate':end,'issues':list(dict.fromkeys(issues)),
+            'createNewBatch':bool(re.search(r'新(?:增)?(?:一)?批次|新的一批|新的批次',text)),
+            'shelfLifeMentioned':'保质期' in text or '到期' in text,
             'unsupported':multiple,'referenceTime':dt.datetime.now(ZONE).isoformat(timespec='seconds')}

@@ -1,6 +1,43 @@
 """Bounded inventory hints for drafts; never an inventory write path."""
 import difflib
 import re
+from schedule_parser import NUM, number
+from fridge_parser import parse_fridge
+
+
+def folded(text):
+    """Normalize floor numbers and filler words, retaining source spans."""
+    chars=[];spans=[];cursor=0
+    for match in re.finditer(NUM+r'楼',text):
+        for index in range(cursor,match.start()):chars.append(text[index]);spans.append((index,index+1))
+        value=str(number(match[0][:-1]))+'楼'
+        for char in value:chars.append(char);spans.append(match.span())
+        cursor=match.end()
+    for index in range(cursor,len(text)):chars.append(text[index]);spans.append((index,index+1))
+    kept=[i for i,c in enumerate(chars) if not c.isspace() and c not in '的里，,。:：']
+    return ''.join(chars[i] for i in kept),[spans[i] for i in kept]
+
+
+def fridge_mentions(text,fridges):
+    value,positions=folded(text)
+    matches=[]
+    for f in fridges:
+        name=folded(f['name'])[0]
+        if not name:continue
+        for m in re.finditer(re.escape(name),value):matches.append((m.start(),m.end(),f))
+    # Prefer the longest name when a shorter fridge name is contained in it.
+    matches=[m for m in matches if not any(n[0]<=m[0] and n[1]>=m[1] and n[1]-n[0]>m[1]-m[0] for n in matches)]
+    if not matches:
+        for m in re.finditer(r'(?:\d+楼)?(?:客厅|厨房)?冰箱',value):
+            candidates=[f for f in fridges if folded(f['name'])[0].endswith(m[0])]
+            if len(candidates)==1:matches.append((m.start(),m.end(),candidates[0]))
+    result=[]
+    for begin,end,f in matches:
+        if begin<len(positions) and end>begin:
+            finish=positions[end-1][1];suffix=re.match(r'(?:里面的|里面|里边的|里边|里的|里|的)',text[finish:])
+            start=positions[begin][0];prefix=re.search(r'(?:在|从|往|给|向)\s*$',text[:start])
+            result.append((prefix.start() if prefix else start,finish+(len(suffix[0]) if suffix else 0),f))
+    return result
 
 
 def clean_context(raw):
@@ -23,10 +60,37 @@ def clean_context(raw):
     return result
 
 
+def location_suggestions(food,items):
+    categories=('酸奶','牛奶','奶酪','饮料','罐头','烧卖','饺子','馄饨','包子','牛肉','猪肉','鸡肉','鱼丸','鸡蛋','苹果','草莓','蔬菜')
+    scores={}
+    for item in items:
+        name=item['name'];location=item['location']
+        if not food or not name or not location:continue
+        if food==name:score=1.0
+        elif min(len(food),len(name))>=2 and (food in name or name in food):score=.92
+        else:
+            score=difflib.SequenceMatcher(None,food,name).ratio()*.85
+            if any(word in food and word in name for word in categories):score=max(score,.75)
+        if score<.45:continue
+        entry=scores.setdefault(location,{'location':location,'score':0,'evidence':[]})
+        entry['score']=max(entry['score'],round(score*100))
+        if name not in entry['evidence'] and len(entry['evidence'])<2:entry['evidence'].append(name)
+    return sorted(scores.values(),key=lambda value:(-value['score'],value['location']))[:3]
+
+
 def enrich(draft,text,context):
     fridges=context['fridges']
-    mentioned=[f for f in fridges if f['name'] and f['name'] in text]
-    if len(mentioned)==1:draft['fridgeName']=mentioned[0]['name']
+    mentions=fridge_mentions(text,fridges)
+    mentioned={f['id']:f for _,_,f in mentions}
+    if mentions:
+        chars=list(text)
+        for begin,end,_ in mentions:chars[begin:end]=' '*(end-begin)
+        draft.update(parse_fridge(''.join(chars)))
+    if len(mentioned)==1:
+        target=next(iter(mentioned.values()));draft['fridgeName']=target['name'];draft['fridgeId']=target['id'];draft['fridgeMatched']=True
+    elif len(mentioned)>1:
+        draft['fridgeName']='多个冰箱';draft['unsupported']=True
+        draft['issues'].append('包含多个冰箱，请一次处理一台冰箱')
     selected=[f for f in fridges if f['name']==draft['fridgeName']] if draft['fridgeName'] else [f for f in fridges if f['id']==context['preferredFridgeId']]
     if not selected and not draft['fridgeName']:selected=fridges
     items=[item for f in selected for item in f['items']]
@@ -54,6 +118,8 @@ def enrich(draft,text,context):
                 draft['unit']=next(iter(units));draft['unitInferred']=True
     elif len(candidates)>1:
         draft['issues'].append('同名或相近食材有多种，请选定完整品名和批次')
+    draft['locationSuggestionsByFridge']={f['id']:location_suggestions(draft['food'],f['items']) for f in fridges}
+    draft['locationSource']='same_food' if draft.get('locationInferred') else 'explicit' if draft['location'] else 'missing'
     return draft
 
 

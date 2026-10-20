@@ -14,6 +14,7 @@ class FridgeTests(unittest.TestCase):
             ('放进了里脊肉三块','add',3,'块','里脊肉','',''),
             ('红颜草莓酸奶喝掉了十瓶','remove',10,'瓶','红颜草莓酸奶','',''),
             ('放进去了两盒红颜草莓酸奶','add',2,'盒','红颜草莓酸奶','',''),
+            ('蓝莓酸奶放入两个，在冷藏上层','add',2,'个','蓝莓酸奶','','上部冷藏'),
         ]
         for text,*expected in cases:
             with self.subTest(text=text):

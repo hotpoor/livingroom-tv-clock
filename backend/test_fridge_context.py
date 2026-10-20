@@ -30,6 +30,22 @@ class ContextTests(unittest.TestCase):
         c=clean_context(raw)
         self.assertEqual(len(c['fridges']),20)
         self.assertEqual(sum(len(f['items']) for f in c['fridges']),32)
+    def test_similar_food_area_suggestions(self):
+        result=self.draft('放进蓝莓酸奶两个')
+        self.assertEqual(result['food'],'蓝莓酸奶')
+        self.assertEqual(result['location'],'')
+        suggestion=result['locationSuggestionsByFridge']['living'][0]
+        self.assertEqual((suggestion['location'],suggestion['score']),('上部冷藏',75))
+        self.assertIn('红颜草莓酸奶',suggestion['evidence'])
+        explicit=self.draft('放进蓝莓酸奶两个，冷冻')
+        self.assertEqual((explicit['location'],explicit['locationSource']),('冷冻','explicit'))
+    def test_spoken_floor_and_fillers(self):
+        raw={'preferredFridgeId':'wrong','fridges':[{'id':'living','name':'二楼客厅冰箱','items':[{'name':'红颜草莓酸奶','unit':'盒','location':'上部冷藏'}]},{'id':'wrong','name':'七楼冰箱','items':[]}]}
+        for text in ('2楼客厅冰箱放进两盒红颜草莓酸奶','我在二楼的客厅冰箱里面放进了两盒草莓酸奶','从2楼的客厅冰箱里吃掉两盒草莓酸奶','红颜草莓酸奶放入两盒 在二楼客厅冰箱'):
+            with self.subTest(text=text):
+                r=self.draft(text,raw)
+                self.assertEqual((r['fridgeId'],r['fridgeName'],r['food'],r['quantity']),('living','二楼客厅冰箱','红颜草莓酸奶',2))
+        self.assertEqual(self.draft('客厅冰箱放进两盒草莓酸奶',raw)['fridgeId'],'living')
 
 
 if __name__=='__main__':unittest.main()
