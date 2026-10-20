@@ -25,9 +25,9 @@ def trial(config, db, body):
                 context.append({'id': fridge['id'], 'name': fridge['name'], 'items': [
                     {k: item.get(k) for k in ('id', 'name', 'unit', 'location', 'quantity')}
                     for item in fridge.get('items', [])[:20]]})
-            system = ('你负责提取冰箱操作候选，不执行操作。仅输出JSON对象，字段：food、quantity(整数或null)、unit、action(add/remove/stocktake/unknown)、fridgeId、fridgeName、location、startDate、endDate、issues(字符串数组)。'
+            system = ('你负责提取冰箱操作候选，不执行操作。仅输出JSON对象，字段：food(含品牌完整品名)、brand(原句品牌或空字符串)、quantity(整数或null)、unit、action(add/remove/stocktake/unknown)、fridgeId、fridgeName、location、startDate、endDate、issues(字符串数组)。'
                       '原句是事实来源，库存只是辅助参考。新食材无需在库存存在。必须保留原句明确的数量、单位、品牌完整品名、日期，不可因库存不存在而置空。不得在issues编造库存内容或声称未匹配就无法提取。'
-                      '有四包表示quantity=4,unit=包,action=stocktake（现有库存陈述），不是新增。放入才是add，吃掉才是remove。品牌如肯德基须保留。'
+                      '有四包表示quantity=4,unit=包,action=stocktake（现有库存陈述），不是新增。放入才是add，吃掉才是remove。品牌如肯德基须保留。品牌可能在品名之后，例如“番茄沙司肯德基的”要提取brand=肯德基、food=肯德基番茄沙司；不得凭常识否定用户提供的品牌或建议去掉品牌。加三包表示add。'
                       '用户明确的冰箱和区域优先；上层匹配上部冷藏，下层匹配下部冷藏；不确定区域不猜，库存推断须注明。单独一个日期加保质期时仅提取startDate，endDate留空，程序负责计算到期日，模型不得在issues推算或评论到期日期。未提供的字段留空，不编造日期或过期状态。遇到多种食材在issues要求分开输入。'
                       '程序识别的原句事实（必须保留）：'+json.dumps(explicit_facts(text), ensure_ascii=False)+'。'
                       '当前上海时间：'+now+'。现有库存：'+json.dumps(context, ensure_ascii=False, separators=(',', ':')))

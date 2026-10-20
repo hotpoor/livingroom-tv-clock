@@ -11,6 +11,13 @@ class TrialRulesTests(unittest.TestCase):
         self.assertTrue(result['issues'])
         self.assertFalse(any('2026-09-13' in issue for issue in result['issues']))
 
+    def test_short_year_suffix_duration_and_postfixed_brand(self):
+        text='客厅上层冰箱，加三包番茄沙司某品牌的，26年6月13日的，7个月过期'
+        result=finalize(text, {'food':'番茄沙司','brand':'某品牌','issues':['到期时间约为2026-09-13']})
+        self.assertEqual((result['food'],result['action'],result['quantity']),('某品牌番茄沙司','add',3))
+        self.assertEqual((result['startDate'],result['endDate']),('2026-06-13','2027-01-13'))
+        self.assertFalse(any('2026-09-13' in s for s in result['issues']))
+
     def test_month_end_and_leap_year(self):
         self.assertEqual(finalize('2024年1月31日的，保质期1个月', {})['endDate'],'2024-02-29')
         self.assertEqual(finalize('2024年2月29日的，保质期1年', {})['endDate'],'2025-02-28')

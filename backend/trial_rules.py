@@ -14,6 +14,8 @@ def explicit_facts(text):
         if not re.search(r'[.负\-]\s*$', text[:m.start()]):
             facts.update(quantity=number(m[1]), unit=m[2])
     actions = {'remove' if REMOVE.search(m[0]) else 'add' for m in ACTION.finditer(text)}
+    if re.search(r'(?:加|补)(?:了)?\s*'+NUM+r'(?:个|盒|瓶|袋|包|罐|块|份)', text):
+        actions.add('add')
     if len(actions) == 1:
         facts['action'] = next(iter(actions))
     elif not actions and re.match(r'^\s*(?:现在|目前|现有)?\s*(?:有|还剩|剩下)', text):
@@ -23,17 +25,27 @@ def explicit_facts(text):
 
 def finalize(text, draft):
     draft.update(explicit_facts(text))
+    brand = draft.get('brand')
+    food = draft.get('food')
+    if isinstance(brand,str) and isinstance(food,str) and brand.strip() and brand in text and brand not in food:
+        draft['food'] = brand.strip()+food
     issues = draft.get('issues')
     issues = issues if isinstance(issues, list) else []
     if draft.get('action') == 'stocktake':
         issues.append('这是现有数量陈述，不是新增或扣减；实际保存前需确认操作方式')
-    dates = list(re.finditer(r'(?<!\d)(\d{4})[-年/](\d{1,2})[-月/](\d{1,2})[日号]?(?!\d)', text))
+    dates = list(re.finditer(r'(?<!\d)(\d{4}|\d{2})[-年/](\d{1,2})[-月/](\d{1,2})[日号]?(?!\d)', text))
     duration = re.search(r'保质期\s*(?:为|是)?\s*('+NUM+r')\s*(?:个)?(月|年|天|日)', text)
+    if not duration:
+        duration = re.search(r'('+NUM+r')\s*(?:个)?(月|年|天|日)\s*(?:后)?(?:过期|到期)', text)
     if len(dates) == 1 and duration:
         # Date arithmetic and its explanation must have one authoritative source.
         issues = [s for s in issues if not re.search(r'日期|到期|保质期|有效|生产|过期|\d{4}|推算', str(s))]
         try:
-            start = datetime.date(*(int(dates[0][i]) for i in (1, 2, 3)))
+            year = int(dates[0][1])
+            if len(dates[0][1]) == 2:
+                year += 2000
+                issues.append('两位年份按20xx年理解，请核对')
+            start = datetime.date(year, int(dates[0][2]), int(dates[0][3]))
             amount = number(duration[1])
             if not 0 < amount <= 1200:
                 raise ValueError()
