@@ -24,6 +24,8 @@ jobs:
       - name: Build and verify
         shell: pwsh
         run: ./verify.ps1
+      - name: Check schedule parser
+        run: python -m unittest discover -s backend -v
       - uses: actions/upload-artifact@v7
         with:
           name: livingroom-flipclock-debug

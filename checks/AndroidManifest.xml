@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="cn.livingroom.flipclock.checks">
+  <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="28" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <application android:label="Clock device checks" android:usesCleartextTraffic="true" />
+  <instrumentation android:name="cn.livingroom.flipclock.VoiceFlowChecks" android:targetPackage="cn.livingroom.flipclock" />
+</manifest>

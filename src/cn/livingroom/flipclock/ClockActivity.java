@@ -42,7 +42,7 @@ public class ClockActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
     }
-    protected void onResume() { super.onResume();foreground=true; if (weather != null) weather.start(); }
+    protected void onResume() { super.onResume();foreground=true; if (weather != null) weather.start(); if(schedule!=null)schedule.refresh(); }
     protected void onPause() { foreground=false;super.onPause(); if (weather != null) weather.stop(); }
     protected void onDestroy() { weather.close(); unregisterReceiver(exit);unregisterReceiver(alert); super.onDestroy(); }
     protected void onNewIntent(Intent i){super.onNewIntent(i);setIntent(i);if("schedule".equals(i.getStringExtra("openPanel")))openSchedule();if("voice".equals(i.getStringExtra("openPanel")))openVoiceTest();}
@@ -75,7 +75,7 @@ public class ClockActivity extends Activity {
     private void settings() {
         SharedPreferences p = getSharedPreferences("clock",0);
         show(new AlertDialog.Builder(this).setTitle("翻页时钟 · 设置")
-          .setItems(new String[]{"天气设置", "屏幕亮度 · "+p.getInt("brightness",100)+"%", "时钟与日期 · 农历", "冰箱库存 · 横向 Tab", "备忘与日程 · 倒计时", "遥控器语音输入测试", "返回时钟"},(d,w)-> {
+          .setItems(new String[]{"天气设置", "屏幕亮度 · "+p.getInt("brightness",100)+"%", "时钟与日期 · 农历", "冰箱库存 · 横向 Tab", "备忘与日程 · 倒计时", "语音添加日程", "返回时钟"},(d,w)-> {
               if(w==0) weatherSettings();
               if(w==1) brightnessSettings();
               if(w==2) displaySettings();
@@ -84,7 +84,7 @@ public class ClockActivity extends Activity {
               if(w==5) openVoiceTest();
           }).setNegativeButton("关闭",null));
     }
-    private void openVoiceTest(){startActivity(new Intent(this,VoiceTestActivity.class));}
+    private void openVoiceTest(){startActivity(new Intent(this,VoiceScheduleActivity.class));}
     private void openFridge(){
         if(fridge!=null)return;
         closeSchedule();

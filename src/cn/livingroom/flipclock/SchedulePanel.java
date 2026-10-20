@@ -24,7 +24,7 @@ public class SchedulePanel extends LinearLayout {
         setOrientation(VERTICAL);setPadding(dp(18),dp(22),dp(18),dp(16));setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff201e2b,0xff12151c}));
         addView(label("把今天重要的事，放在眼前",11,MUTED));
         LinearLayout heading=row();TextView title=label("备忘与日程",25,WHITE);title.setTypeface(null,Typeface.BOLD);heading.addView(title,new LayoutParams(0,-2,1));
-        Button add=button("＋");add.setContentDescription("添加日程");add.setOnClickListener(v->edit(-1));heading.addView(add,new LayoutParams(dp(36),dp(34)));initial=add;
+        Button add=button("＋");add.setContentDescription("添加日程");add.setOnClickListener(v->new AlertDialog.Builder(activity).setTitle("添加日程").setItems(new String[]{"语音 / 自然语言输入","手动填写日期时间"},(d,w)->{if(w==0)activity.startActivity(new Intent(activity,VoiceScheduleActivity.class));else edit(-1);}).setNegativeButton("取消",null).show());heading.addView(add,new LayoutParams(dp(36),dp(34)));initial=add;
         LayoutParams hp=new LayoutParams(-1,-2);hp.topMargin=dp(7);hp.bottomMargin=dp(12);addView(heading,hp);
         TextView date=label(ScheduleStore.today().replace('-','.')+"  ·  上海时间",12,MUTED);addView(date);
         ScrollView scroll=new ScrollView(a);scroll.setVerticalScrollBarEnabled(false);body=new LinearLayout(a);body.setOrientation(VERTICAL);body.setPadding(0,dp(18),0,dp(8));scroll.addView(body);addView(scroll,new LayoutParams(-1,0,1));
@@ -39,6 +39,7 @@ public class SchedulePanel extends LinearLayout {
     protected void onAttachedToWindow(){super.onAttachedToWindow();handler.post(ticker);}
     protected void onDetachedFromWindow(){handler.removeCallbacksAndMessages(null);super.onDetachedFromWindow();}
     public void focusFirst(){post(()->initial.requestFocus());}
+    public void refresh(){tasks=ScheduleStore.load(activity);rebuild();}
     private void rebuild(){
         updates.clear();body.removeAllViews();
         if(tasks.length()==0){TextView empty=label("今天想记住什么？\n点击右上角 ＋ 添加事项。",17,MUTED);empty.setLineSpacing(dp(10),1);body.addView(empty);return;}

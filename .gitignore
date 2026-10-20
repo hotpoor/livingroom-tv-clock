@@ -11,3 +11,5 @@
 Thumbs.db
 .idea/
 .vscode/
+/backend/config.json
+__pycache__/
