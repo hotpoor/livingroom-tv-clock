@@ -14,9 +14,17 @@ public class SchedulePanel extends LinearLayout {
     private final Activity activity;
     private JSONArray tasks;
     private final LinearLayout body;
+    private final ScrollView scroll;
+    private final Button[] tabs=new Button[3];
+    private final int[] positions=new int[3];
+    private final HashMap<String,View> cards=new HashMap<>();
+    private int tab;
+    private String alertId="",alertPhase="",bucketKey="";
+    private Button addButton;
+    private String buckets(){StringBuilder b=new StringBuilder();long now=System.currentTimeMillis();for(int i=0;i<tasks.length();i++){JSONObject t=tasks.optJSONObject(i);if(t!=null)b.append(t.optString("id")).append(ScheduleStore.expired(t,now));}return b.toString();}
     private final Handler handler=new Handler();
     private final ArrayList<Runnable> updates=new ArrayList<>();
-    private final Runnable ticker=new Runnable(){public void run(){for(Runnable r:updates)r.run();handler.postDelayed(this,1000);}};
+    private final Runnable ticker=new Runnable(){public void run(){if(!bucketKey.equals(buckets())){rebuild();focusFirst();}for(Runnable r:updates)r.run();handler.postDelayed(this,1000);}};
     private View initial;
     private static final int WHITE=0xffeef0f5,MUTED=0xff9299aa,PURPLE=0xffc8c0f2,AMBER=0xffedc28d;
     SchedulePanel(Activity a){
@@ -24,11 +32,13 @@ public class SchedulePanel extends LinearLayout {
         setOrientation(VERTICAL);setPadding(dp(18),dp(22),dp(18),dp(16));setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff201e2b,0xff12151c}));
         addView(label("把今天重要的事，放在眼前",11,MUTED));
         LinearLayout heading=row();TextView title=label("备忘与日程",25,WHITE);title.setTypeface(null,Typeface.BOLD);heading.addView(title,new LayoutParams(0,-2,1));
-        Button add=button("＋");add.setContentDescription("添加日程");add.setOnClickListener(v->new AlertDialog.Builder(activity).setTitle("添加日程").setItems(new String[]{"语音 / 自然语言输入","手动填写日期时间"},(d,w)->{if(w==0)activity.startActivity(new Intent(activity,VoiceScheduleActivity.class));else edit(-1);}).setNegativeButton("取消",null).show());heading.addView(add,new LayoutParams(dp(36),dp(34)));initial=add;
+        Button add=button("＋");addButton=add;add.setContentDescription("添加日程");add.setOnClickListener(v->new AlertDialog.Builder(activity).setTitle("添加日程").setItems(new String[]{"语音 / 自然语言输入","手动填写日期时间"},(d,w)->{if(w==0)activity.startActivity(new Intent(activity,VoiceScheduleActivity.class));else edit(-1);}).setNegativeButton("取消",null).show());heading.addView(add,new LayoutParams(dp(36),dp(34)));initial=add;
         LayoutParams hp=new LayoutParams(-1,-2);hp.topMargin=dp(7);hp.bottomMargin=dp(12);addView(heading,hp);
         TextView date=label(ScheduleStore.today().replace('-','.')+"  ·  上海时间",12,MUTED);addView(date);
-        ScrollView scroll=new ScrollView(a);scroll.setVerticalScrollBarEnabled(false);body=new LinearLayout(a);body.setOrientation(VERTICAL);body.setPadding(0,dp(18),0,dp(8));scroll.addView(body);addView(scroll,new LayoutParams(-1,0,1));
-        addView(label("↑ ↓ 浏览    确认管理事项    返回收起",10,MUTED));rebuild();
+        LinearLayout tabRow=row();String[] names={"即将到期","最近添加","已过期"};
+        for(int i=0;i<3;i++){final int target=i;Button b=button(names[i]);b.setTextSize(12);b.setOnClickListener(v->selectTab(target));tabs[i]=b;LayoutParams lp=new LayoutParams(0,dp(40),1);lp.setMargins(dp(2),dp(12),dp(2),0);tabRow.addView(b,lp);}addView(tabRow);
+        scroll=new ScrollView(a);scroll.setVerticalScrollBarEnabled(false);body=new LinearLayout(a);body.setOrientation(VERTICAL);body.setPadding(0,dp(18),0,dp(8));scroll.addView(body);addView(scroll,new LayoutParams(-1,0,1));
+        addView(label("← → 切换分类    ↑ ↓ 浏览    确认管理",10,MUTED));rebuild();
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private LinearLayout row(){LinearLayout l=new LinearLayout(activity);l.setOrientation(HORIZONTAL);l.setGravity(Gravity.CENTER_VERTICAL);return l;}
@@ -40,14 +50,26 @@ public class SchedulePanel extends LinearLayout {
     protected void onDetachedFromWindow(){handler.removeCallbacksAndMessages(null);super.onDetachedFromWindow();}
     public void focusFirst(){post(()->initial.requestFocus());}
     public void refresh(){tasks=ScheduleStore.load(activity);rebuild();}
+    public void switchTab(int delta){selectTab((tab+delta+3)%3);}
+    private void selectTab(int target){positions[tab]=scroll.getScrollY();tab=target;rebuild();post(()->{tabs[tab].requestFocus();scroll.scrollTo(0,positions[tab]);});}
+    public void focusTask(String id,String phase){
+        if(id==null||id.isEmpty())return;tasks=ScheduleStore.load(activity);
+        for(int i=0;i<tasks.length();i++){JSONObject t=tasks.optJSONObject(i);if(t!=null&&id.equals(t.optString("id"))){positions[tab]=scroll.getScrollY();tab=ScheduleStore.expired(t,System.currentTimeMillis())?2:0;alertId=id;alertPhase=phase==null?"start":phase;rebuild();post(()->{View v=cards.get(id);if(v!=null){v.requestFocus();android.graphics.Rect rect=new android.graphics.Rect();v.getDrawingRect(rect);body.offsetDescendantRectToMyCoords(v,rect);scroll.smoothScrollTo(0,Math.max(0,rect.top-dp(8)));v.setAlpha(.55f);v.animate().alpha(1).setDuration(800).start();}});return;}}
+    }
     private void rebuild(){
-        updates.clear();body.removeAllViews();
-        if(tasks.length()==0){TextView empty=label("今天想记住什么？\n点击右上角 ＋ 添加事项。",17,MUTED);empty.setLineSpacing(dp(10),1);body.addView(empty);return;}
-        for(int i=0;i<tasks.length();i++)card(i,tasks.optJSONObject(i));
+        bucketKey=buckets();updates.clear();cards.clear();body.removeAllViews();initial=addButton;
+        for(int i=0;i<3;i++){tabs[i].setTextColor(i==tab?WHITE:MUTED);tabs[i].setBackground(i==tab?shape(0xff4d4369,0xffc8c0f2):surface());}
+        ArrayList<Integer> order=new ArrayList<>();long now=System.currentTimeMillis();
+        for(int i=0;i<tasks.length();i++){JSONObject t=tasks.optJSONObject(i);if(t==null)continue;boolean expired=ScheduleStore.expired(t,now);if(tab==1||(tab==2?expired:!expired&&!t.optBoolean("completed")))order.add(i);}
+        Collections.sort(order,(a,b)->{JSONObject x=tasks.optJSONObject(a),y=tasks.optJSONObject(b);long left=tab==1?x.optLong("createdAt"):ScheduleStore.due(x),right=tab==1?y.optLong("createdAt"):ScheduleStore.due(y);int result=Long.compare(left,right);return tab==0?result:-result;});
+        if(order.isEmpty()){TextView empty=label(tab==2?"没有未完成的过期事项":tab==0?"暂无即将到期事项\n点击右上角 ＋ 添加事项。":"还没有添加事项",17,MUTED);empty.setLineSpacing(dp(10),1);body.addView(empty);return;}
+        for(int index:order)card(index,tasks.optJSONObject(index));
     }
     private void card(int index,JSONObject t){
         boolean done=t.optBoolean("completed"),urgent=t.optBoolean("mustFinishToday");
         LinearLayout card=new LinearLayout(activity);card.setOrientation(VERTICAL);card.setPadding(dp(15),dp(14),dp(15),dp(14));card.setBackground(surface());card.setFocusable(true);card.setClickable(true);card.setOnClickListener(v->manage(index));
+        cards.put(t.optString("id"),card);
+        if(t.optString("id").equals(alertId)){TextView alertLabel=label("departure".equals(alertPhase)?"本次提醒 · 该出发了":"本次提醒 · 计划时间已到",12,AMBER);card.addView(alertLabel);}
         LinearLayout top=row();String kind=t.optString("departureTime").isEmpty()?urgent?"今日必办":"日程":"接送提醒";
         top.addView(label(urgent?"今天一定要完成":kind,11,urgent?AMBER:PURPLE),new LayoutParams(0,-2,1));top.addView(label(done?"✓ 已完成":t.optString("time"),13,done?0xff9acbb5:WHITE));card.addView(top);
         TextView title=label(t.optString("title"),19,done?MUTED:WHITE);title.setTypeface(null,Typeface.BOLD);LayoutParams tp=new LayoutParams(-1,-2);tp.topMargin=dp(10);tp.bottomMargin=dp(12);card.addView(title,tp);
@@ -65,7 +87,7 @@ public class SchedulePanel extends LinearLayout {
             else{caption.setText(departure>0?"接送时间已到 · 请确认完成":urgent?"已到开始时间 · 今天一定要完成":"已到计划时间 · 尚未标记完成");count.setText("已过 "+ScheduleStore.countdown(now-start));}
             if(urgent){long end=ScheduleStore.deadline(t);deadline.setText(end>now?"距当天结束 "+ScheduleStore.countdown(end-now):"当天已结束 · 事项仍未完成");}else deadline.setVisibility(GONE);
         };updates.add(update);update.run();
-        LayoutParams cp=new LayoutParams(-1,-2);cp.bottomMargin=dp(14);body.addView(card,cp);if(index==0)initial=card;
+        LayoutParams cp=new LayoutParams(-1,-2);cp.bottomMargin=dp(14);body.addView(card,cp);if(initial==addButton)initial=card;
     }
     private void manage(int index){JSONObject t=tasks.optJSONObject(index);new AlertDialog.Builder(activity).setTitle(t.optString("title")).setItems(new String[]{t.optBoolean("completed")?"恢复为待办":"标记已完成","编辑事项","删除事项"},(d,w)->{
         if(w==0){try{t.put("completed",!t.optBoolean("completed"));}catch(JSONException ignored){}ScheduleStore.save(activity,tasks);rebuild();focusFirst();}

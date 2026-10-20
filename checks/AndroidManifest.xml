@@ -5,4 +5,5 @@
   <instrumentation android:name="cn.livingroom.flipclock.VoiceFlowChecks" android:targetPackage="cn.livingroom.flipclock" />
   <instrumentation android:name="cn.livingroom.flipclock.FridgeFlowChecks" android:targetPackage="cn.livingroom.flipclock" />
   <instrumentation android:name="cn.livingroom.flipclock.InventoryWebChecks" android:targetPackage="cn.livingroom.flipclock" />
+  <instrumentation android:name="cn.livingroom.flipclock.SchedulePanelChecks" android:targetPackage="cn.livingroom.flipclock" />
 </manifest>

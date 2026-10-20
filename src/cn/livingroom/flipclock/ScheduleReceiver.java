@@ -12,11 +12,11 @@ public class ScheduleReceiver extends BroadcastReceiver {
         String title=i.getStringExtra("title"),message=i.getStringExtra("message");
         NotificationManager nm=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);
         NotificationChannel channel=new NotificationChannel("schedule","日程提醒",NotificationManager.IMPORTANCE_HIGH);nm.createNotificationChannel(channel);
-        Intent open=new Intent(c,ClockActivity.class).putExtra("openPanel","schedule").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        Intent open=new Intent(c,ClockActivity.class).putExtra("openPanel","schedule").putExtra("taskId",task.optString("id")).putExtra("phase",i.getStringExtra("phase")).setData(i.getData()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent click=PendingIntent.getActivity(c,200,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Notification n=new Notification.Builder(c,"schedule").setSmallIcon(c.getApplicationInfo().icon).setContentTitle(title).setContentText(message).setContentIntent(click).setAutoCancel(true).build();
         nm.notify(i.getDataString().hashCode(),n);
-        c.sendBroadcast(new Intent("cn.livingroom.flipclock.SCHEDULE_ALERT").setPackage(c.getPackageName()).putExtra("message",title+"："+message));
+        c.sendBroadcast(new Intent("cn.livingroom.flipclock.SCHEDULE_ALERT").setPackage(c.getPackageName()).putExtra("taskId",task.optString("id")).putExtra("phase",i.getStringExtra("phase")).putExtra("message",title+"："+message));
         android.util.Log.i("FlipClock","Schedule alert: "+title+" "+message);
     }
 }

@@ -21,7 +21,7 @@ public class ClockActivity extends Activity {
         public void onReceive(Context c, Intent i) { finish(); }
     };
     private final BroadcastReceiver alert = new BroadcastReceiver() {
-        public void onReceive(Context c,Intent i){if(foreground){openSchedule();android.widget.Toast.makeText(c,i.getStringExtra("message"),android.widget.Toast.LENGTH_LONG).show();}}
+        public void onReceive(Context c,Intent i){if(foreground){openSchedule();schedule.focusTask(i.getStringExtra("taskId"),i.getStringExtra("phase"));android.widget.Toast.makeText(c,i.getStringExtra("message"),android.widget.Toast.LENGTH_LONG).show();}}
     };
     public void onCreate(Bundle b) {
         super.onCreate(b);
@@ -35,7 +35,7 @@ public class ClockActivity extends Activity {
         registerReceiver(exit, new IntentFilter("cn.livingroom.flipclock.EXIT"));
         registerReceiver(alert,new IntentFilter("cn.livingroom.flipclock.SCHEDULE_ALERT"));
         ScheduleStore.schedule(this,ScheduleStore.load(this));
-        if("schedule".equals(getIntent().getStringExtra("openPanel")))root.post(()->openSchedule());
+        if("schedule".equals(getIntent().getStringExtra("openPanel")))root.post(()->{openSchedule();schedule.focusTask(getIntent().getStringExtra("taskId"),getIntent().getStringExtra("phase"));});
         if("voice".equals(getIntent().getStringExtra("openPanel")))root.post(()->openVoiceTest());
         if("fridgeVoice".equals(getIntent().getStringExtra("openPanel")))root.post(()->openFridgeVoice());
         if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
@@ -47,7 +47,7 @@ public class ClockActivity extends Activity {
     protected void onResume() { super.onResume();foreground=true; if (weather != null) weather.start(); if(schedule!=null)schedule.refresh(); if(fridge!=null)fridge.reload(); }
     protected void onPause() { foreground=false;super.onPause(); if (weather != null) weather.stop(); }
     protected void onDestroy() { weather.close(); unregisterReceiver(exit);unregisterReceiver(alert); super.onDestroy(); }
-    protected void onNewIntent(Intent i){super.onNewIntent(i);setIntent(i);if("schedule".equals(i.getStringExtra("openPanel")))openSchedule();if("voice".equals(i.getStringExtra("openPanel")))openVoiceTest();if("fridgeVoice".equals(i.getStringExtra("openPanel")))openFridgeVoice();}
+    protected void onNewIntent(Intent i){super.onNewIntent(i);setIntent(i);if("schedule".equals(i.getStringExtra("openPanel"))){openSchedule();schedule.focusTask(i.getStringExtra("taskId"),i.getStringExtra("phase"));}if("voice".equals(i.getStringExtra("openPanel")))openVoiceTest();if("fridgeVoice".equals(i.getStringExtra("openPanel")))openFridgeVoice();}
     public void onRequestPermissionsResult(int r, String[] p, int[] g) { super.onRequestPermissionsResult(r,p,g); weather.start(); }
     public boolean dispatchKeyEvent(KeyEvent e) {
         if (dialogs > 0) return super.dispatchKeyEvent(e);
@@ -59,6 +59,7 @@ public class ClockActivity extends Activity {
             return super.dispatchKeyEvent(e);
         }
         if(schedule!=null){
+            if(k==KeyEvent.KEYCODE_DPAD_LEFT||k==KeyEvent.KEYCODE_DPAD_RIGHT){if(e.getAction()==KeyEvent.ACTION_DOWN)schedule.switchTab(k==KeyEvent.KEYCODE_DPAD_RIGHT?1:-1);return true;}
             if(e.getAction()==KeyEvent.ACTION_DOWN&&(k==KeyEvent.KEYCODE_BACK||k==KeyEvent.KEYCODE_MENU)){closeSchedule();return true;}
             return super.dispatchKeyEvent(e);
         }
