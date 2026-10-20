@@ -16,7 +16,11 @@ jobs:
           java-version: '17'
       - name: Install Android SDK packages
         shell: pwsh
-        run: sdkmanager 'platforms;android-28' 'build-tools;35.0.0' 'platform-tools'
+        run: |
+          $manager = Get-ChildItem -LiteralPath "$env:ANDROID_HOME\cmdline-tools" -Filter sdkmanager.bat -Recurse | Select-Object -First 1
+          if (!$manager) { throw 'Android SDK command-line tools not found on runner' }
+          & $manager.FullName 'platforms;android-28' 'build-tools;35.0.0' 'platform-tools'
+          if ($LASTEXITCODE -ne 0) { throw 'Android SDK package installation failed' }
       - name: Build and verify
         shell: pwsh
         run: ./verify.ps1
