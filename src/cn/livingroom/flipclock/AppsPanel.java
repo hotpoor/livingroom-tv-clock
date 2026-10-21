@@ -45,11 +45,11 @@ final class AppsPanel extends LinearLayout {
     }
     private void openWebsite(){
         Intent open=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://www.yifan.tv/"));
-        for(String browser:new String[]{"com.tcl.browser","com.phlox.tvwebbrowser"}){
+        for(String browser:new String[]{"com.phlox.tvwebbrowser"}){
             open.setPackage(browser);
             if(open.resolveActivity(activity.getPackageManager())!=null){activity.startActivity(open);return;}
         }
-        Toast.makeText(activity,"请先安装 BrowseHere 或 TV Bro 浏览器",Toast.LENGTH_LONG).show();
+        Toast.makeText(activity,"请先安装 TV Bro 浏览器",Toast.LENGTH_LONG).show();
     }
     private int priority(String pkg){return pkg.equals("com.google.android.youtube.tv")?0:pkg.equals("com.github.metacubex.clash.meta")?1:2;}
     private int dp(int value){return Math.round(value*getResources().getDisplayMetrics().density);}

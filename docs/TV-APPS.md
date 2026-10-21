@@ -22,7 +22,7 @@
 
 Chrome 没有专门适配电视遥控器的官方电视客户端。本次安装了 TV Bro 2.1.6 的官方 ARMv7 Gecko 包，以及 BrowseHere 官网提供的8.20.060电视版。浏览器兼容性应分别测试，不能仅凭可安装判断视频播放可用。
 
-“一帆 TV”卡片使用 ACTION_VIEW 传入 https://www.yifan.tv/ ，不是把网站嵌入时钟。当前代码优先交给 BrowseHere（com.tcl.browser），没有匹配入口时回退 TV Bro（com.phlox.tvwebbrowser）。都不可用时提示安装浏览器。
+“一帆 TV”卡片使用 ACTION_VIEW 传入 https://www.yifan.tv/ ，不是把网站嵌入时钟。按用户最新选择，当前代码固定交给 TV Bro（com.phlox.tvwebbrowser），不再自动选择 BrowseHere。没有匹配入口时提示安装 TV Bro。
 
 用户已确认网站可打开，当时 ADB 前台包核实为 TV Bro。BrowseHere 已安装，但尚未确认该网站在 BrowseHere 内的渲染及播放。不要把两者的验证结果混为一谈。
 
